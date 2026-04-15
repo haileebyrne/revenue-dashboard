@@ -1,77 +1,58 @@
-// src/lib/databricks.ts
-// All Databricks calls happen server-side only — token never reaches the browser.
+const CACHE: Record<string, { data: any; ts: number }> = {};
+const CACHE_TTL = 1000 * 60 * 30;
 
-const HOST = process.env.DATABRICKS_HOST!
-const TOKEN = process.env.DATABRICKS_TOKEN!
-const WAREHOUSE_ID = process.env.DATABRICKS_WAREHOUSE_ID!
-
-export interface DatabricksColumn {
-  name: string
-  type_name: string
+async function pollStatement(host: string, token: string, statementId: string): Promise<any> {
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    const res = await fetch(`https://${host}/api/2.0/sql/statements/${statementId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const result = await res.json();
+    const state = result.status?.state;
+    if (state === 'SUCCEEDED') return result;
+    if (state === 'FAILED') throw new Error(result.status?.error?.message || 'Query failed');
+  }
+  throw new Error('Query timed out after 90 seconds');
 }
 
-export interface DatabricksResult {
-  columns: DatabricksColumn[]
-  rows: (string | null)[][]
-}
-
-export async function runQuery(sql: string): Promise<DatabricksResult> {
-  if (!HOST || !TOKEN || !WAREHOUSE_ID) {
-    throw new Error('Databricks env vars not configured. Set DATABRICKS_HOST, DATABRICKS_TOKEN, DATABRICKS_WAREHOUSE_ID.')
+export async function queryDatabricks(sql: string, cacheKey: string) {
+  const now = Date.now();
+  if (CACHE[cacheKey] && now - CACHE[cacheKey].ts < CACHE_TTL) {
+    return CACHE[cacheKey].data;
   }
 
-  const submitRes = await fetch(`${HOST}/api/2.0/sql/statements`, {
+  const host = process.env.DATABRICKS_HOST!;
+  const token = process.env.DATABRICKS_TOKEN!;
+  const warehouseId = process.env.DATABRICKS_HTTP_PATH?.split('/').pop();
+
+  const response = await fetch(`https://${host}/api/2.0/sql/statements`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${TOKEN}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      warehouse_id: WAREHOUSE_ID,
+      warehouse_id: warehouseId,
       statement: sql,
-      wait_timeout: '30s',
-      on_wait_timeout: 'CANCEL',
-      format: 'JSON_ARRAY',
+      wait_timeout: '50s',
     }),
-  })
+  });
 
-  if (!submitRes.ok) {
-    const err = await submitRes.text()
-    throw new Error(`Databricks HTTP ${submitRes.status}: ${err}`)
+  let result = await response.json();
+  const state = result.status?.state;
+
+  if (state === 'PENDING' || state === 'RUNNING') {
+    result = await pollStatement(host, token, result.statement_id);
+  } else if (state === 'FAILED') {
+    throw new Error(result.status?.error?.message || 'Query failed');
   }
 
-  const data = await submitRes.json()
+  const columns = result.manifest?.schema?.columns?.map((c: any) => c.name) || [];
+  const rows = result.result?.data_array || [];
+  const data = rows.map((row: any[]) =>
+    Object.fromEntries(columns.map((col: string, i: number) => [col, row[i]]))
+  );
 
-  if (data.status?.state === 'FAILED') {
-    throw new Error(data.status.error?.message || 'Query failed')
-  }
-
-  const columns: DatabricksColumn[] =
-    data.manifest?.schema?.columns?.map((c: { name: string; type_name: string }) => ({
-      name: c.name,
-      type_name: c.type_name,
-    })) ?? []
-
-  const rows: (string | null)[][] = data.result?.data_array ?? []
-
-  return { columns, rows }
-}
-
-// Convert a row array + column defs into a plain object
-export function rowToObject(
-  columns: DatabricksColumn[],
-  row: (string | null)[]
-): Record<string, string | number | null> {
-  const obj: Record<string, string | number | null> = {}
-  columns.forEach((col, i) => {
-    const raw = row[i]
-    if (raw === null || raw === undefined) {
-      obj[col.name] = null
-    } else if (['INT', 'BIGINT', 'DOUBLE', 'FLOAT', 'DECIMAL', 'LONG'].includes(col.type_name)) {
-      obj[col.name] = parseFloat(raw)
-    } else {
-      obj[col.name] = raw
-    }
-  })
-  return obj
+  CACHE[cacheKey] = { data, ts: now };
+  return data;
 }
