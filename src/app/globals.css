@@ -1,0 +1,28 @@
+/* src/app/globals.css */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f6f5f1;
+  --surface: #ffffff;
+  --surface2: #efede8;
+  --border: rgba(0,0,0,0.08);
+  --border-md: rgba(0,0,0,0.14);
+  --text: #18170f;
+  --text-2: #6b6a63;
+  --text-3: #9e9d96;
+  --green: #166534;
+  --green-bg: #dcfce7;
+  --red: #991b1b;
+  --red-bg: #fee2e2;
+  --accent: #1e3a6e;
+  --accent-bg: #eff6ff;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --font: 'DM Sans', system-ui, sans-serif;
+  --mono: 'DM Mono', 'Fira Code', monospace;
+}
+
+html { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; }
+body { min-height: 100vh; }
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&family=DM+Mono&display=swap');
