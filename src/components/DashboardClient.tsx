@@ -128,6 +128,7 @@ function Top50Table({ rows }: { rows: Top50Client[] }) {
               <Th label="Client" col="client_name" sort={sort} onSort={onSort} />
               <Th label="Vintage" col="vintage" sort={sort} onSort={onSort} />
               <Th label="Fee structure" col="fee_structure" sort={sort} onSort={onSort} />
+              <Th label="Carve-out" col="carveout" sort={sort} onSort={onSort} />
               <Th label="EEs" col="ees" sort={sort} onSort={onSort} right />
               <Th label="YTD proc '26" col="ytd_procedures_26" sort={sort} onSort={onSort} right />
               <Th label="YTD proc '25" col="ytd_procedures_25" sort={sort} onSort={onSort} right />
@@ -143,6 +144,7 @@ function Top50Table({ rows }: { rows: Top50Client[] }) {
                   <td className={`${styles.td} ${styles.clientName}`} title={r.client_name}>{r.client_name}</td>
                   <td className={styles.td}>{r.vintage ?? '—'}</td>
                   <td className={styles.td}>{r.fee_structure}</td>
+                  <td className={styles.td}>{r.carveout ?? '—'}</td>
                   <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ees)}</td>
                   <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures_26)}</td>
                   <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures_25)}</td>
@@ -156,6 +158,7 @@ function Top50Table({ rows }: { rows: Top50Client[] }) {
               {totals.map((r, i) => (
                 <tr key={`tot-${i}`} className={`${styles.row} ${styles.totalRow}`}>
                   <td className={`${styles.td} ${styles.clientName}`}>{r.client_name}</td>
+                  <td className={styles.td}>—</td>
                   <td className={styles.td}>—</td>
                   <td className={styles.td}>—</td>
                   <td className={`${styles.td} ${styles.right}`}>—</td>
@@ -213,6 +216,7 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
               <Th label="Go-live" col="go_live_date" sort={sort} onSort={onSort} />
               <Th label="EEs" col="ees" sort={sort} onSort={onSort} right />
               <Th label="Fee structure" col="fee_structure" sort={sort} onSort={onSort} />
+              <Th label="Carve-out" col="carveout" sort={sort} onSort={onSort} />
               <Th label="Call rate" col="ytd_call_rate" sort={sort} onSort={onSort} right />
               <Th label="EOP cases" col="eop_active_cases" sort={sort} onSort={onSort} right />
               <Th label="YTD proc" col="ytd_procedures" sort={sort} onSort={onSort} right />
@@ -228,6 +232,7 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
                   <td className={styles.td}>{r.go_live_date ?? '—'}</td>
                   <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ees)}</td>
                   <td className={styles.td}>{r.fee_structure}</td>
+                  <td className={styles.td}>{r.carveout ?? '—'}</td>
                   <td className={`${styles.td} ${styles.right}`}>{r.ytd_call_rate != null ? `${r.ytd_call_rate.toFixed(1)}%` : '—'}</td>
                   <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.eop_active_cases)}</td>
                   <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures)}</td>
