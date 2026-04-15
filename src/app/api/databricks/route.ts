@@ -3,6 +3,14 @@ import { queryDatabricks } from '@/lib/databricks';
 
 export const dynamic = 'force-dynamic';
 
+function carveoutLabel(val: any): string {
+  const n = parseFloat(val);
+  if (!val || isNaN(n)) return 'Voluntary';
+  if (n > 1) return 'Multi Carve-Out';
+  if (n === 1) return 'Bariatric Carve-Out';
+  return 'Voluntary';
+}
+
 export async function GET() {
   try {
     const year = new Date().getFullYear();
@@ -18,7 +26,7 @@ export async function GET() {
         FROM sandboxwarehouse.growth_analytics.budgeted_revenues
       `, 'budget-rev'),
       queryDatabricks(`
-        SELECT care_hub_name, fee_structure, carve_out_2, ees, cohort, modeling_go_live, contract_start_date
+        SELECT care_hub_name, fee_structure, carve_out, ees, cohort, modeling_go_live, contract_start_date
         FROM sandboxwarehouse.growth_analytics.client_inputs
         WHERE care_hub_name IS NOT NULL
       `, 'client-inputs'),
@@ -31,30 +39,32 @@ export async function GET() {
     const ytdActual = actual.filter((r: any) => r.revenue_month?.startsWith(`${year}`));
     const aprBudget = budget.filter((r: any) => r.revenue_month?.startsWith(`${year}-04`));
     const ytdBudget = budget.filter((r: any) => r.revenue_month?.startsWith(`${year}`));
-    const pyYtd    = actual.filter((r: any) => r.revenue_month?.startsWith(`${year - 1}`));
-    const pyApr    = actual.filter((r: any) => r.revenue_month?.startsWith(`${year - 1}-04`));
+    const pyYtd     = actual.filter((r: any) => r.revenue_month?.startsWith(`${year - 1}`));
+    const pyApr     = actual.filter((r: any) => r.revenue_month?.startsWith(`${year - 1}-04`));
 
-    const aprMtdRev  = sum(aprActual, 'actual_revenue');
-    const ytdRev     = sum(ytdActual, 'actual_revenue');
-    const aprBudTot  = sum(aprBudget, 'surgery_care_revenue');
-    const ytdBudTot  = sum(ytdBudget, 'surgery_care_revenue');
-    const pyAprRev   = sum(pyApr, 'actual_revenue');
-    const pyYtdRev   = sum(pyYtd, 'actual_revenue');
+    const aprMtdRev = sum(aprActual, 'actual_revenue');
+    const ytdRev    = sum(ytdActual, 'actual_revenue');
+    const aprBudTot = sum(aprBudget, 'surgery_care_revenue');
+    const ytdBudTot = sum(ytdBudget, 'surgery_care_revenue');
+    const pyAprRev  = sum(pyApr, 'actual_revenue');
+    const pyYtdRev  = sum(pyYtd, 'actual_revenue');
 
     // ── top50 by client ───────────────────────────────────────────────────
     const clientMap: Record<string, any> = {};
     for (const r of actual) {
       const n = r.client_name;
       if (!clientMap[n]) clientMap[n] = {
-        client_name: n, fee_structure: r.fee_structure || '—',
-        carveout: r.carve_out || '—', ees: parseFloat(r.ees) || null,
+        client_name: n,
+        fee_structure: r.fee_structure || '—',
+        carveout: carveoutLabel(r.carve_out),
+        ees: parseFloat(r.ees) || null,
         vintage: r.go_live_date ? new Date(r.go_live_date).getFullYear() : null,
         ytd_rev: 0, apr_rev: 0, py_rev: 0,
       };
       const rev = parseFloat(r.actual_revenue) || 0;
-      if (r.revenue_month?.startsWith(`${year}`)) clientMap[n].ytd_rev += rev;
-      if (r.revenue_month?.startsWith(`${year}-04`)) clientMap[n].apr_rev += rev;
-      if (r.revenue_month?.startsWith(`${year - 1}`)) clientMap[n].py_rev += rev;
+      if (r.revenue_month?.startsWith(`${year}`))      clientMap[n].ytd_rev += rev;
+      if (r.revenue_month?.startsWith(`${year}-04`))   clientMap[n].apr_rev += rev;
+      if (r.revenue_month?.startsWith(`${year - 1}`))  clientMap[n].py_rev  += rev;
     }
 
     const budClientMap: Record<string, number> = {};
@@ -76,7 +86,9 @@ export async function GET() {
         apr_revenue_26: Math.round(c.apr_rev / 1000),
         ytd_revenue_26: Math.round(c.ytd_rev / 1000),
         ytd_revenue_25: c.py_rev ? Math.round(c.py_rev / 1000) : null,
-        ytd_vs_py_pct: c.py_rev ? parseFloat(((c.ytd_rev - c.py_rev) / c.py_rev * 100).toFixed(1)) : null,
+        ytd_vs_py_pct: c.py_rev
+          ? parseFloat(((c.ytd_rev - c.py_rev) / c.py_rev * 100).toFixed(1))
+          : null,
         ytd_vs_budget_pct: budClientMap[c.client_name]
           ? parseFloat(((c.ytd_rev - budClientMap[c.client_name]) / budClientMap[c.client_name] * 100).toFixed(1))
           : null,
@@ -90,8 +102,12 @@ export async function GET() {
       apr_revenue_26: Math.round(aprMtdRev / 1000),
       ytd_revenue_26: Math.round(ytdRev / 1000),
       ytd_revenue_25: pyYtdRev ? Math.round(pyYtdRev / 1000) : null,
-      ytd_vs_py_pct: pyYtdRev ? parseFloat(((ytdRev - pyYtdRev) / pyYtdRev * 100).toFixed(1)) : null,
-      ytd_vs_budget_pct: ytdBudTot ? parseFloat(((ytdRev - ytdBudTot) / ytdBudTot * 100).toFixed(1)) : null,
+      ytd_vs_py_pct: pyYtdRev
+        ? parseFloat(((ytdRev - pyYtdRev) / pyYtdRev * 100).toFixed(1))
+        : null,
+      ytd_vs_budget_pct: ytdBudTot
+        ? parseFloat(((ytdRev - ytdBudTot) / ytdBudTot * 100).toFixed(1))
+        : null,
       is_total: true,
     });
 
@@ -103,12 +119,17 @@ export async function GET() {
         return {
           client_name: c.care_hub_name,
           go_live_date: c.modeling_go_live || c.contract_start_date,
-          ees: c.ees, fee_structure: c.fee_structure || '—',
-          carveout: c.carve_out_2 || '—', vintage: c.cohort,
-          ytd_call_rate: null, eop_active_cases: null, ytd_procedures: null,
+          ees: c.ees,
+          fee_structure: c.fee_structure || '—',
+          carveout: carveoutLabel(c.carve_out),
+          vintage: c.cohort,
+          ytd_call_rate: null,
+          eop_active_cases: null,
+          ytd_procedures: null,
           apr_revenue: rev ? Math.round(rev.apr_rev / 1000) : 0,
           ytd_revenue: rev ? Math.round(rev.ytd_rev / 1000) : 0,
-          ytd_vs_budget_pct: null, ytd_vs_model_pct: null,
+          ytd_vs_budget_pct: null,
+          ytd_vs_model_pct: null,
         };
       });
 
@@ -122,12 +143,18 @@ export async function GET() {
         apr_proc_forecast: null,
         ytd_procedures: null,
         ytd_revenue: Math.round(ytdRev),
-        apr_mtd_revenue_vs_py: pyAprRev ? parseFloat(((aprMtdRev - pyAprRev) / pyAprRev * 100).toFixed(1)) : null,
-        apr_month_forecast_vs_budget: aprBudTot ? parseFloat(((aprMtdRev - aprBudTot) / aprBudTot * 100).toFixed(1)) : null,
+        apr_mtd_revenue_vs_py: pyAprRev
+          ? parseFloat(((aprMtdRev - pyAprRev) / pyAprRev * 100).toFixed(1))
+          : null,
+        apr_month_forecast_vs_budget: aprBudTot
+          ? parseFloat(((aprMtdRev - aprBudTot) / aprBudTot * 100).toFixed(1))
+          : null,
         apr_mtd_procedures_vs_py: null,
         apr_proc_forecast_vs_budget: null,
         ytd_procedures_vs_py: null,
-        ytd_revenue_vs_py: pyYtdRev ? parseFloat(((ytdRev - pyYtdRev) / pyYtdRev * 100).toFixed(1)) : null,
+        ytd_revenue_vs_py: pyYtdRev
+          ? parseFloat(((ytdRev - pyYtdRev) / pyYtdRev * 100).toFixed(1))
+          : null,
       },
       top50,
       cohort,
