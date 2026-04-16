@@ -1,4 +1,3 @@
-curl -s http://localhost:3000/api/databricks > /dev/null & cat > src/components/DashboardClient.tsx << 'ENDOFFILE'
 'use client'
 import { useState, useCallback, useEffect } from 'react'
 import type { DashboardData, Top50Client, CohortClient } from '@/lib/types'
@@ -50,7 +49,7 @@ function Filters({ search, onSearch, fee, onFee, carve, onCarve, vintage, onVint
 }) {
   return (
     <div className={styles.controls}>
-      <input className={styles.ctrl} type="text" value={search} onChange={e => onSearch(e.target.value)} placeholder="Search client…" />
+      <input className={styles.ctrl} type="text" value={search} onChange={e => onSearch(e.target.value)} placeholder="Search client..." />
       <select className={styles.ctrl} value={fee} onChange={e => onFee(e.target.value)}>
         <option value="">All fee structures</option>
         <option>% of Savings</option><option>Variable</option><option>Fixed</option><option>Hybrid</option>
@@ -67,8 +66,8 @@ function Filters({ search, onSearch, fee, onFee, carve, onCarve, vintage, onVint
     </div>
   )
 }
-function Top50Table({ rows }: { rows: Top50Client[] }) {
-  const [sort, setSort] = useState<SortState>({ col: 'ytd_revenue_26', dir: -1 })
+function ClientTable({ rows, defaultSort = 'ytd_revenue_26' }: { rows: Top50Client[]; defaultSort?: string }) {
+  const [sort, setSort] = useState<SortState>({ col: defaultSort, dir: -1 })
   const [search, setSearch] = useState('')
   const [fee, setFee] = useState('')
   const [carve, setCarve] = useState('')
@@ -95,12 +94,12 @@ function Top50Table({ rows }: { rows: Top50Client[] }) {
           <Th label="Fee structure" col="fee_structure" sort={sort} onSort={onSort} />
           <Th label="Carve-out" col="carveout" sort={sort} onSort={onSort} />
           <Th label="EEs" col="ees" sort={sort} onSort={onSort} right />
-          <Th label="YTD proc '26" col="ytd_procedures_26" sort={sort} onSort={onSort} right />
-          <Th label="YTD proc '25" col="ytd_procedures_25" sort={sort} onSort={onSort} right />
+          <Th label="YTD proc 26" col="ytd_procedures_26" sort={sort} onSort={onSort} right />
+          <Th label="YTD proc 25" col="ytd_procedures_25" sort={sort} onSort={onSort} right />
           <Th label="Apr MTD ($k)" col="apr_revenue_26" sort={sort} onSort={onSort} right />
           <Th label="Apr EOM Est ($k)" col="apr_eom_est" sort={sort} onSort={onSort} right />
-          <Th label="YTD rev '26 ($k)" col="ytd_revenue_26" sort={sort} onSort={onSort} right />
-          <Th label="YTD rev '25 ($k)" col="ytd_revenue_25" sort={sort} onSort={onSort} right />
+          <Th label="YTD rev 26 ($k)" col="ytd_revenue_26" sort={sort} onSort={onSort} right />
+          <Th label="YTD rev 25 ($k)" col="ytd_revenue_25" sort={sort} onSort={onSort} right />
           <Th label="YTD vs PY" col="ytd_vs_py_pct" sort={sort} onSort={onSort} right />
           <Th label="YTD vs budget" col="ytd_vs_budget_pct" sort={sort} onSort={onSort} right />
         </tr></thead>
@@ -223,8 +222,8 @@ function KpiRow({ kpis }: { kpis: DashboardData['kpis'] }) {
     { label: 'Apr EOM Forecast', value: fmtMoney(kpis.apr_month_forecast, 'M'), delta: kpis.apr_month_forecast_vs_budget, sub: 'vs budget' },
     { label: 'Apr MTD Procedures', value: fmtNum(kpis.apr_mtd_procedures), delta: kpis.apr_mtd_procedures_vs_py, sub: 'vs prior year' },
     { label: 'Apr Proc. Forecast', value: fmtNum(kpis.apr_proc_forecast), delta: kpis.apr_proc_forecast_vs_budget, sub: 'vs budget' },
-    { label: "YTD Procedures '26", value: fmtNum(kpis.ytd_procedures), delta: kpis.ytd_procedures_vs_py, sub: 'vs prior year' },
-    { label: "YTD Revenue '26", value: fmtMoney(kpis.ytd_revenue, 'M'), delta: kpis.ytd_revenue_vs_py, sub: 'vs prior year' },
+    { label: "YTD Procedures 26", value: fmtNum(kpis.ytd_procedures), delta: kpis.ytd_procedures_vs_py, sub: 'vs prior year' },
+    { label: "YTD Revenue 26", value: fmtMoney(kpis.ytd_revenue, 'M'), delta: kpis.ytd_revenue_vs_py, sub: 'vs prior year' },
   ]
   return (
     <div className={styles.kpiRow}>
@@ -241,10 +240,10 @@ function KpiRow({ kpis }: { kpis: DashboardData['kpis'] }) {
     </div>
   )
 }
-type TabId = 'top50' | 'cohort'
+type TabId = 'all' | 'top50' | 'cohort'
 export default function DashboardClient({ initialData }: { initialData: DashboardData }) {
   const [data, setData] = useState<DashboardData>(initialData)
-  const [tab, setTab] = useState<TabId>('top50')
+  const [tab, setTab] = useState<TabId>('all')
   const [refreshing, setRefreshing] = useState(false)
   const refresh = useCallback(async () => {
     setRefreshing(true)
@@ -257,6 +256,11 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
     const id = setInterval(refresh, 15 * 60 * 1000)
     return () => clearInterval(id)
   }, [refresh])
+
+  const allClients = (data as any).top50 || []
+  const top50Only = (data as any).top50_only || allClients.slice(0, 51)
+  const cohort2026 = ((data as any).cohort || []).filter((r: any) => r.vintage === 2026 || r.vintage === "2026" || String(r.vintage) === "2026")
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -274,9 +278,9 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
           </div>
         </div>
         <div className={styles.headerRight}>
-          {data.meta && (
+          {(data as any).meta && (
             <span className={styles.sourceTag}>
-              Biz day {data.meta.business_day}/{data.meta.total_biz_days} · {(data.meta.curve_at_today * 100).toFixed(1)}% scheduled
+              Biz day {(data as any).meta.business_day}/{(data as any).meta.total_biz_days} · {((data as any).meta.curve_at_today * 100).toFixed(1)}% scheduled
             </span>
           )}
           <span className={styles.sourceTag}>
@@ -284,7 +288,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
             {data.source === 'databricks' ? 'Databricks' : 'Fallback'}
           </span>
           <button className={styles.refreshBtn} onClick={refresh} disabled={refreshing}>
-            {refreshing ? '↻ Refreshing…' : '↻ Refresh'}
+            {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
           <span className={styles.sourceTag} style={{color: 'rgba(245,237,217,0.5)'}}>
             Updated {new Date(data.refreshedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -294,16 +298,20 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
       <main className={styles.main}>
         <KpiRow kpis={data.kpis} />
         <div className={styles.tabs}>
-          {(['top50', 'cohort'] as TabId[]).map(t => (
+          {([
+            ['all', 'All Clients'],
+            ['top50', 'Top 50'],
+            ['cohort', '2026 Cohort'],
+          ] as [TabId, string][]).map(([t, label]) => (
             <button key={t} className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`} onClick={() => setTab(t)}>
-              {t === 'top50' ? 'Top 50 Clients' : '2026 Cohort'}
+              {label}
             </button>
           ))}
         </div>
-        {tab === 'top50' && <Top50Table rows={data.top50} />}
-        {tab === 'cohort' && <CohortTable rows={data.cohort} />}
+        {tab === 'all'    && <ClientTable rows={allClients} />}
+        {tab === 'top50'  && <ClientTable rows={top50Only} />}
+        {tab === 'cohort' && <CohortTable rows={cohort2026} />}
       </main>
     </div>
   )
 }
-ENDOFFILE
