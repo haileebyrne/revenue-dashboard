@@ -324,29 +324,30 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
   return (
     <div className={styles.page}>
       {/* Header */}
-      <header className={styles.header}>
-        <div>
-          <div className={styles.headerTitle}>Revenue Projections</div>
-          <div className={styles.headerSub}>Surgery Care · 2026 YTD</div>
-        </div>
-        <div className={styles.headerRight}>
-          {data.source === 'fallback' && (
-            <span className={styles.fallbackBadge}>Sample data — configure Databricks</span>
-          )}
-          <span className={styles.refreshTime}>Updated {refreshedAt}</span>
-          <button
-            className={`${styles.refreshBtn} ${refreshing ? styles.spinning : ''}`}
-            onClick={refresh}
-            title="Refresh data"
-          >
-            ↻
-          </button>
-          <div className={`${styles.dbBadge} ${data.source === 'databricks' ? styles.dbOn : ''}`}>
-            <span className={styles.dbDot} />
-            Databricks
-          </div>
-        </div>
-      </header>
+      <<header className={styles.header}>
+  <div className={styles.headerLeft}>
+    <a className={styles.logo}>
+      <svg className={styles.logoIcon} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M55 15 C55 15 80 30 80 58 C80 75 68 88 50 88 C32 88 20 75 20 58 C20 40 35 20 50 12 C50 12 42 35 50 45 C54 50 62 48 65 42 C68 36 65 25 55 15Z" fill="#F5EDD9"/>
+        <path d="M45 55 C45 55 30 50 28 62 C26 72 35 80 48 80 C44 74 43 65 45 55Z" fill="#F5EDD9" opacity="0.7"/>
+      </svg>
+      <span className={styles.logoText}>Lantern</span>
+    </a>
+    <div className={styles.headerTitle}>
+      <h1>Revenue Projections</h1>
+      <p>Surgery Care · {new Date().getFullYear()} YTD</p>
+    </div>
+  </div>
+  <div className={styles.headerRight}>
+    <span className={styles.sourceTag}>
+      <span className={styles.sourceDot}></span>
+      {data.source === 'databricks' ? 'Databricks' : 'Fallback'}
+    </span>
+    <span className={styles.sourceTag} style={{color: 'rgba(245,237,217,0.5)'}}>
+      Updated {new Date(data.refreshedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+    </span>
+  </div>
+</header>
 
       <main className={styles.main}>
         <KpiRow kpis={data.kpis} />
