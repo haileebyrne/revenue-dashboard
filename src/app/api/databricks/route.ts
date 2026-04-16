@@ -46,15 +46,13 @@ export async function GET() {
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
     const monthStr = String(month).padStart(2, '0');
-    const yearStr = String(year);
-    const prevYearStr = String(year - 1);
 
     const currentBizDay = businessDayOfMonth(now);
     const totalBizDays = businessDaysInMonth(year, month);
     const curveAtToday = SCHEDULING_CURVE[currentBizDay] || 0.85;
     const scaleUpFactor = curveAtToday > 0 ? 1 / curveAtToday : 1;
 
-    const [actual, budget, inputs, surgeries] = await Promise.all([
+    const [actual, budget, inputs, surgeries, priorYrProcs] = await Promise.all([
       queryDatabricks(
         'SELECT client_name, fee_structure, carve_out, ees, go_live_date, revenue_month, actual_revenue FROM sandboxwarehouse.growth_analytics.actual_revenues',
         'actual-rev'
@@ -89,7 +87,22 @@ export async function GET() {
           AND s.requested_procedure_item_category <> 'INFUSION'`,
         'cur-month-surgeries'
       ),
+      queryDatabricks(
+        `SELECT client_name, COUNT(DISTINCT service_id) as proc_count
+        FROM datawarehouse.core.member_surgeries
+        WHERE YEAR(date_of_service) = ${year - 1}
+          AND MONTH(date_of_service) <= ${month}
+          AND requested_procedure_item_category <> 'INFUSION'
+        GROUP BY client_name`,
+        'prior-yr-procs'
+      ),
     ]);
+
+    // Prior year procedure lookup
+    const priorProcByName: Record<string, number> = {};
+    for (const r of priorYrProcs) {
+      priorProcByName[r.client_name] = parseInt(r.proc_count) || 0;
+    }
 
     // Aggregate surgeries by client_name
     const surgByName: Record<string, { client_code: string; care_hub_name: string; fee_structure: string; carve_out: any; ees: any; go_live_year: any; scheduled: number; scheduled_rev: number }> = {};
@@ -113,8 +126,9 @@ export async function GET() {
     const totalEomRev = totalScheduledRev * scaleUpFactor;
     const totalScheduledProcs = Object.values(surgByName).reduce((a, c) => a + c.scheduled, 0);
     const totalEomProcs = Math.round(totalScheduledProcs * scaleUpFactor);
+    const totalPriorProcs = Object.values(priorProcByName).reduce((a, b) => a + b, 0);
 
-    // Aggregate actual revenues - parse month properly from end-of-month dates
+    // Aggregate actual revenues
     const actByName: Record<string, { fee_structure: string; carveout: string; ees: any; vintage: number | null; prior_rev: number; py_rev: number }> = {};
     for (const r of actual) {
       const n = r.client_name;
@@ -165,11 +179,11 @@ export async function GET() {
     const allClients = Array.from(allClientNames).map(name => {
       const act  = actByName[name];
       const surg = surgByName[name];
-      const aprMtd = surg?.scheduled_rev || 0;
-      const aprEom = surgEomRev[name] || 0;
+      const aprMtd  = surg?.scheduled_rev || 0;
+      const aprEom  = surgEomRev[name] || 0;
       const priorRev = act?.prior_rev || 0;
-      const ytdEst = priorRev + aprEom;
-      const pyRev = act?.py_rev || 0;
+      const ytdEst  = priorRev + aprEom;
+      const pyRev   = act?.py_rev || 0;
       return {
         client_name: name,
         vintage: act?.vintage ?? (surg?.go_live_year ? parseInt(surg.go_live_year) : null),
@@ -177,7 +191,7 @@ export async function GET() {
         carveout: act?.carveout ?? carveoutLabel(surg?.carve_out),
         ees: act?.ees ?? (surg?.ees ? parseInt(surg.ees) : null),
         ytd_procedures_26: surgEomProcs[name] || null,
-        ytd_procedures_25: null,
+        ytd_procedures_25: priorProcByName[name] || null,
         apr_revenue_26: Math.round(aprMtd / 1000),
         apr_eom_est: Math.round(aprEom / 1000),
         ytd_revenue_26: Math.round(ytdEst / 1000),
@@ -189,7 +203,8 @@ export async function GET() {
 
     const totalRow = {
       client_name: 'Total Surgery Care Revenue', vintage: null, fee_structure: '—', carveout: '—', ees: null,
-      ytd_procedures_26: totalEomProcs, ytd_procedures_25: null,
+      ytd_procedures_26: totalEomProcs,
+      ytd_procedures_25: totalPriorProcs || null,
       apr_revenue_26: Math.round(totalScheduledRev / 1000),
       apr_eom_est: Math.round(totalEomRev / 1000),
       ytd_revenue_26: Math.round(ytdRevTotal / 1000),
@@ -202,7 +217,7 @@ export async function GET() {
     const top50 = [...allClients].slice(0, 50).concat([totalRow]);
     const allWithTotal = [...allClients, totalRow];
 
-    // Cohort - all clients from client_inputs
+    // Cohort from client_inputs
     const cohort = inputs.map((c: any) => {
       const name = c.care_hub_name;
       const surg = surgByName[name];
@@ -246,7 +261,7 @@ export async function GET() {
         apr_month_forecast_vs_budget: curBudRev ? parseFloat(((totalEomRev - curBudRev) / curBudRev * 100).toFixed(1)) : null,
         apr_mtd_procedures_vs_py: null,
         apr_proc_forecast_vs_budget: null,
-        ytd_procedures_vs_py: null,
+        ytd_procedures_vs_py: totalPriorProcs ? parseFloat(((totalEomProcs - totalPriorProcs) / totalPriorProcs * 100).toFixed(1)) : null,
         ytd_revenue_vs_py: pyYtdRev ? parseFloat(((ytdRevTotal - pyYtdRev) / pyYtdRev * 100).toFixed(1)) : null,
       },
       top50: allWithTotal,
