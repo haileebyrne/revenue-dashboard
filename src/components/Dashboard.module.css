@@ -290,3 +290,12 @@
   .main { padding: 16px; }
   .header { padding: 0 16px; }
 }
+.kpiDelta { font-size: 11px; font-weight: 500; margin-top: 4px; }
+.kpiDelta.pos { color: var(--green); }
+.kpiDelta.neg { color: var(--red); }
+
+
+.kpiDelta { font-size: 11px; font-weight: 500; margin-top: 4px; }
+.kpiDelta.pos { color: var(--green); }
+.kpiDelta.neg { color: var(--red); }
+
