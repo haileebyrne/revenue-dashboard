@@ -66,8 +66,8 @@ function Filters({ search, onSearch, fee, onFee, carve, onCarve, vintage, onVint
     </div>
   )
 }
-function Top50Table({ rows }: { rows: Top50Client[] }) {
-  const [sort, setSort] = useState<SortState>({ col: 'ytd_revenue_26', dir: -1 })
+function ClientTable({ rows, defaultSort = 'ytd_revenue_26' }: { rows: Top50Client[]; defaultSort?: string }) {
+  const [sort, setSort] = useState<SortState>({ col: defaultSort, dir: -1 })
   const [search, setSearch] = useState('')
   const [fee, setFee] = useState('')
   const [carve, setCarve] = useState('')
@@ -199,8 +199,7 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
           {totals.map((r, i) => (
             <tr key={`tot-${i}`} className={`${styles.row} ${styles.totalRow}`}>
               <td className={`${styles.td} ${styles.clientName}`}>{r.client_name}</td>
-              <td className={styles.td}>—</td>
-              <td className={`${styles.td} ${styles.right}`}>—</td>
+              <td className={styles.td}>—</td><td className={`${styles.td} ${styles.right}`}>—</td>
               <td className={styles.td}>—</td><td className={styles.td}>—</td>
               <td className={`${styles.td} ${styles.right}`}>{r.ytd_call_rate != null ? `${r.ytd_call_rate.toFixed(1)}%` : '—'}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.eop_active_cases)}</td>
@@ -241,10 +240,10 @@ function KpiRow({ kpis }: { kpis: DashboardData['kpis'] }) {
     </div>
   )
 }
-type TabId = 'top50' | 'cohort'
+type TabId = 'all' | 'top50' | 'cohort'
 export default function DashboardClient({ initialData }: { initialData: DashboardData }) {
   const [data, setData] = useState<DashboardData>(initialData)
-  const [tab, setTab] = useState<TabId>('top50')
+  const [tab, setTab] = useState<TabId>('all')
   const [refreshing, setRefreshing] = useState(false)
   const refresh = useCallback(async () => {
     setRefreshing(true)
@@ -257,6 +256,11 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
     const id = setInterval(refresh, 15 * 60 * 1000)
     return () => clearInterval(id)
   }, [refresh])
+
+  const allClients = (data as any).top50 || []
+  const top50Only = (data as any).top50_only || allClients.slice(0, 51)
+  const cohort2026 = ((data as any).cohort || []).filter((r: any) => r.vintage === new Date().getFullYear() || r.is_total)
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -274,9 +278,9 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
           </div>
         </div>
         <div className={styles.headerRight}>
-          {data.meta && (
+          {(data as any).meta && (
             <span className={styles.sourceTag}>
-              Biz day {data.meta.business_day}/{data.meta.total_biz_days} · {(data.meta.curve_at_today * 100).toFixed(1)}% scheduled
+              Biz day {(data as any).meta.business_day}/{(data as any).meta.total_biz_days} · {((data as any).meta.curve_at_today * 100).toFixed(1)}% scheduled
             </span>
           )}
           <span className={styles.sourceTag}>
@@ -294,14 +298,19 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
       <main className={styles.main}>
         <KpiRow kpis={data.kpis} />
         <div className={styles.tabs}>
-          {(['top50', 'cohort'] as TabId[]).map(t => (
+          {([
+            ['all', 'All Clients'],
+            ['top50', 'Top 50'],
+            ['cohort', '2026 Cohort'],
+          ] as [TabId, string][]).map(([t, label]) => (
             <button key={t} className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`} onClick={() => setTab(t)}>
-              {t === 'top50' ? 'Top 50 Clients' : '2026 Cohort'}
+              {label}
             </button>
           ))}
         </div>
-        {tab === 'top50' && <Top50Table rows={data.top50} />}
-        {tab === 'cohort' && <CohortTable rows={data.cohort} />}
+        {tab === 'all'    && <ClientTable rows={allClients} />}
+        {tab === 'top50'  && <ClientTable rows={top50Only} />}
+        {tab === 'cohort' && <CohortTable rows={cohort2026} />}
       </main>
     </div>
   )
