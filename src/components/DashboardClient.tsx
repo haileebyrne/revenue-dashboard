@@ -66,8 +66,8 @@ function Filters({ search, onSearch, fee, onFee, carve, onCarve, vintage, onVint
     </div>
   )
 }
-function ClientTable({ rows, defaultSort = 'ytd_revenue_26' }: { rows: Top50Client[]; defaultSort?: string }) {
-  const [sort, setSort] = useState<SortState>({ col: defaultSort, dir: -1 })
+function ClientTable({ rows }: { rows: Top50Client[] }) {
+  const [sort, setSort] = useState<SortState>({ col: 'ytd_revenue_26', dir: -1 })
   const [search, setSearch] = useState('')
   const [fee, setFee] = useState('')
   const [carve, setCarve] = useState('')
@@ -95,7 +95,6 @@ function ClientTable({ rows, defaultSort = 'ytd_revenue_26' }: { rows: Top50Clie
           <Th label="Carve-out" col="carveout" sort={sort} onSort={onSort} />
           <Th label="EEs" col="ees" sort={sort} onSort={onSort} right />
           <Th label="YTD proc 26" col="ytd_procedures_26" sort={sort} onSort={onSort} right />
-          <Th label="YTD proc 25" col="ytd_procedures_25" sort={sort} onSort={onSort} right />
           <Th label="Apr MTD ($k)" col="apr_revenue_26" sort={sort} onSort={onSort} right />
           <Th label="Apr EOM Est ($k)" col="apr_eom_est" sort={sort} onSort={onSort} right />
           <Th label="YTD rev 26 ($k)" col="ytd_revenue_26" sort={sort} onSort={onSort} right />
@@ -112,7 +111,6 @@ function ClientTable({ rows, defaultSort = 'ytd_revenue_26' }: { rows: Top50Clie
               <td className={styles.td}>{r.carveout ?? '—'}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ees)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures_26)}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures_25)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.apr_revenue_26)}</td>
               <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtMoney(r.apr_eom_est)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.ytd_revenue_26)}</td>
@@ -127,7 +125,6 @@ function ClientTable({ rows, defaultSort = 'ytd_revenue_26' }: { rows: Top50Clie
               <td className={styles.td}>—</td><td className={styles.td}>—</td><td className={styles.td}>—</td>
               <td className={`${styles.td} ${styles.right}`}>—</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures_26)}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures_25)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.apr_revenue_26)}</td>
               <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtMoney(r.apr_eom_est)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.ytd_revenue_26)}</td>
@@ -169,8 +166,6 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
           <Th label="EEs" col="ees" sort={sort} onSort={onSort} right />
           <Th label="Fee structure" col="fee_structure" sort={sort} onSort={onSort} />
           <Th label="Carve-out" col="carveout" sort={sort} onSort={onSort} />
-          <Th label="Call rate" col="ytd_call_rate" sort={sort} onSort={onSort} right />
-          <Th label="EOP cases" col="eop_active_cases" sort={sort} onSort={onSort} right />
           <Th label="YTD proc" col="ytd_procedures" sort={sort} onSort={onSort} right />
           <Th label="Apr MTD ($k)" col="apr_revenue" sort={sort} onSort={onSort} right />
           <Th label="Apr EOM Est ($k)" col="apr_eom_est" sort={sort} onSort={onSort} right />
@@ -186,8 +181,6 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
               <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ees)}</td>
               <td className={styles.td}>{r.fee_structure}</td>
               <td className={styles.td}>{r.carveout ?? '—'}</td>
-              <td className={`${styles.td} ${styles.right}`}>{r.ytd_call_rate != null ? `${r.ytd_call_rate.toFixed(1)}%` : '—'}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.eop_active_cases)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.apr_revenue)}</td>
               <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtMoney(r.apr_eom_est)}</td>
@@ -201,8 +194,6 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
               <td className={`${styles.td} ${styles.clientName}`}>{r.client_name}</td>
               <td className={styles.td}>—</td><td className={`${styles.td} ${styles.right}`}>—</td>
               <td className={styles.td}>—</td><td className={styles.td}>—</td>
-              <td className={`${styles.td} ${styles.right}`}>{r.ytd_call_rate != null ? `${r.ytd_call_rate.toFixed(1)}%` : '—'}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.eop_active_cases)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.apr_revenue)}</td>
               <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtMoney(r.apr_eom_est)}</td>
@@ -222,8 +213,8 @@ function KpiRow({ kpis }: { kpis: DashboardData['kpis'] }) {
     { label: 'Apr EOM Forecast', value: fmtMoney(kpis.apr_month_forecast, 'M'), delta: kpis.apr_month_forecast_vs_budget, sub: 'vs budget' },
     { label: 'Apr MTD Procedures', value: fmtNum(kpis.apr_mtd_procedures), delta: kpis.apr_mtd_procedures_vs_py, sub: 'vs prior year' },
     { label: 'Apr Proc. Forecast', value: fmtNum(kpis.apr_proc_forecast), delta: kpis.apr_proc_forecast_vs_budget, sub: 'vs budget' },
-    { label: "YTD Procedures 26", value: fmtNum(kpis.ytd_procedures), delta: kpis.ytd_procedures_vs_py, sub: 'vs prior year' },
-    { label: "YTD Revenue 26", value: fmtMoney(kpis.ytd_revenue, 'M'), delta: kpis.ytd_revenue_vs_py, sub: 'vs prior year' },
+    { label: "YTD Procedures '26", value: fmtNum(kpis.ytd_procedures), delta: kpis.ytd_procedures_vs_py, sub: 'vs prior year' },
+    { label: "YTD Revenue '26", value: fmtMoney(kpis.ytd_revenue, 'M'), delta: kpis.ytd_revenue_vs_py, sub: 'vs prior year' },
   ]
   return (
     <div className={styles.kpiRow}>
@@ -257,9 +248,11 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
     return () => clearInterval(id)
   }, [refresh])
 
-  const allClients = (data as any).top50 || []
-  const top50Only = (data as any).top50_only || allClients.slice(0, 51)
-  const cohort2026 = ((data as any).cohort || []).filter((r: any) => r.vintage === 2026 || r.vintage === "2026" || String(r.vintage) === "2026")
+  const allClients: Top50Client[] = (data as any).top50 || []
+  const top50Only: Top50Client[] = (data as any).top50_only || allClients.slice(0, 51)
+  const cohort2026: CohortClient[] = ((data as any).cohort || []).filter(
+    (r: any) => String(r.vintage) === '2026'
+  )
 
   return (
     <div className={styles.page}>
