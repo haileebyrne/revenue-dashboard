@@ -259,7 +259,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
 
   const allClients = (data as any).top50 || []
   const top50Only = (data as any).top50_only || allClients.slice(0, 51)
-  const cohort2026 = ((data as any).cohort || []).filter((r: any) => r.vintage === 2026 || r.is_total)
+  const cohort2026 = ((data as any).cohort || []).filter((r: any) => r.vintage === 2026)
 
   return (
     <div className={styles.page}>
