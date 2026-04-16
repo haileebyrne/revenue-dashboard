@@ -165,20 +165,23 @@ export async function GET() {
     }> = {};
 
     for (const r of actual) {
-      const n = r.client_name;
-      if (!actByName[n]) actByName[n] = {
-        fee_structure: r.fee_structure || '—',
-        carveout: carveoutLabel(r.carve_out),
-        ees: parseFloat(r.ees) || null,
-        vintage: r.go_live_date ? new Date(r.go_live_date).getFullYear() : null,
-        prior_rev: 0, py_rev: 0,
-      };
-      const rev = parseFloat(r.actual_revenue) || 0;
-      // Prior months of current year
-      if (r.revenue_month?.startsWith(`${year}`) &&
-          !r.revenue_month?.startsWith(`${year}-${monthStr}`)) {
-        actByName[n].prior_rev += rev;
-      }
+  const n = r.client_name;
+  if (!actByName[n]) actByName[n] = {
+    fee_structure: r.fee_structure || '—',
+    carveout: carveoutLabel(r.carve_out),
+    ees: parseFloat(r.ees) || null,
+    vintage: r.go_live_date ? new Date(r.go_live_date).getFullYear() : null,
+    prior_rev: 0, py_rev: 0,
+  };
+  const rev = parseFloat(r.actual_revenue) || 0;
+  const ym = r.revenue_month?.substring(0, 7); // "2026-03"
+  const ry = parseInt(ym?.substring(0, 4));
+  const rm = parseInt(ym?.substring(5, 7));
+  // Prior months of current year (not current month)
+  if (ry === year && rm !== month) actByName[n].prior_rev += rev;
+  // Prior year same period
+  if (ry === year - 1) actByName[n].py_rev += rev;
+}
       // Prior year
       if (r.revenue_month?.startsWith(`${year - 1}`)) actByName[n].py_rev += rev;
     }
