@@ -2,23 +2,35 @@
 import DashboardClient from '@/components/DashboardClient'
 import type { DashboardData } from '@/lib/types'
 
-// Revalidate every 5 minutes on the server (ISR)
-export const revalidate = 300
+export const dynamic = 'force-dynamic'
 
 async function getData(): Promise<DashboardData> {
   try {
-    const base =
-      process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const base = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 
     const res = await fetch(`${base}/api/databricks`, { cache: 'no-store' })
     if (!res.ok) throw new Error(`API ${res.status}`)
-    return await res.json()
-  } catch {
-    // During build or if API is unavailable, import fallback directly
-    const { FALLBACK_DATA } = await import('@/lib/fallback')
-    return FALLBACK_DATA
+    const data = await res.json()
+    if (!data.kpis || !data.top50) throw new Error('Invalid data shape')
+    return data
+  } catch (e) {
+    console.error('getData error:', e)
+    return {
+      source: 'fallback',
+      refreshedAt: new Date().toISOString(),
+      kpis: {
+        apr_mtd_revenue: 0, apr_month_forecast: 0,
+        apr_mtd_procedures: 0, apr_proc_forecast: 0,
+        ytd_procedures: 0, ytd_revenue: 0,
+        apr_mtd_revenue_vs_py: null, apr_month_forecast_vs_budget: null,
+        apr_mtd_procedures_vs_py: null, apr_proc_forecast_vs_budget: null,
+        ytd_procedures_vs_py: null, ytd_revenue_vs_py: null,
+      },
+      top50: [],
+      cohort: [],
+    }
   }
 }
 
