@@ -324,7 +324,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
   return (
     <div className={styles.page}>
       {/* Header */}
-      <<header className={styles.header}>
+      <header className={styles.header}>
   <div className={styles.headerLeft}>
     <a className={styles.logo}>
       <svg className={styles.logoIcon} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
