@@ -517,8 +517,6 @@ export async function GET() {
     const pyFixedProcs = 465; // hardcoded from Data Sources row 5 (avg monthly 2025)
     const pyTotalProcs = pyVarProcs + pyFixedProcs;
 
-    const budgetVarProcs = Math.round((budgetVarFeeRev || curBudRev) / Math.max(totalScheduledRev / Math.max(totalScheduledProcs, 1), 1));
-    const budgetFixedProcs = 521; // from Data Sources row 22
     // Proc counts from other_revenues table (proc_count category)
     let budgetVarProcs = 0;
     let budgetFixedProcs = 521;
