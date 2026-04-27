@@ -69,7 +69,7 @@ export async function GET() {
 
       // Client inputs
       queryDatabricks(
-        'SELECT care_hub_name, fee_structure, carve_out, ees, cohort, modeling_go_live, contract_start_date, variable_pct, variable_pct_2 FROM sandboxwarehouse.growth_analytics.client_inputs WHERE care_hub_name IS NOT NULL',
+        'SELECT care_hub_name, client, fee_structure, carve_out, ees, cohort, modeling_go_live, contract_start_date, variable_pct, variable_pct_2 FROM sandboxwarehouse.growth_analytics.client_inputs WHERE care_hub_name IS NOT NULL',
         'client-inputs'
       ),
 
@@ -396,14 +396,7 @@ export async function GET() {
         const ytdEomProcs26 = ytdActProcs + (surgEomProcs[name] || 0);
         return {
           // Look up display name — care_hub_name is a code, find matching key in actByName/surgByName
-          client_name: (() => {
-            if (actByName[name]) return name;
-            const actMatch = Object.keys(actByName).find(k => k.toUpperCase() === name.toUpperCase());
-            if (actMatch) return actMatch;
-            const surgMatch = Object.keys(surgByName).find(k => k.toUpperCase() === name.toUpperCase());
-            if (surgMatch) return surgMatch;
-            return name;
-          })(),
+          client_name: c.client || name,
           go_live_date: fmtDate(c.contract_start_date),
           ees: c.ees,
           fee_structure: c.fee_structure || '—',
