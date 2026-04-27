@@ -244,9 +244,11 @@ export async function GET() {
       if (!parsed) continue;
       const { ry, rm } = parsed;
       if (ry === year) {
-        budByName[r.client_name] = (budByName[r.client_name] || 0) + rev;
         ytdBudRev += rev;
         if (rm === month) curBudRev += rev;
+        if (rm <= month) {
+          budByName[r.client_name] = (budByName[r.client_name] || 0) + rev;
+        }
       }
     }
 
