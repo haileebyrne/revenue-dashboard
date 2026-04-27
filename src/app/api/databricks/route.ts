@@ -69,7 +69,7 @@ export async function GET() {
 
       // Client inputs
       queryDatabricks(
-        'SELECT care_hub_name, client, fee_structure, carve_out, ees, cohort, modeling_go_live, contract_start_date, variable_pct, variable_pct_2 FROM sandboxwarehouse.growth_analytics.client_inputs WHERE care_hub_name IS NOT NULL',
+        'SELECT care_hub_name, fee_structure, carve_out, ees, cohort, modeling_go_live, contract_start_date, variable_pct, variable_pct_2 FROM sandboxwarehouse.growth_analytics.client_inputs WHERE care_hub_name IS NOT NULL',
         'client-inputs'
       ),
 
@@ -236,7 +236,8 @@ export async function GET() {
     }
 
     // Budget aggregation
-    const budByName: Record<string, number> = {};
+    const budByName: Record<string, number> = {};        // YTD budget per client
+    const fullYearBudByName: Record<string, number> = {}; // Full year budget (for Top 50)
     let curBudRev = 0; let ytdBudRev = 0;
     for (const r of budget) {
       const rev = parseFloat(r.surgery_care_revenue) || 0;
@@ -249,6 +250,9 @@ export async function GET() {
         if (rm <= month) {
           budByName[r.client_name] = (budByName[r.client_name] || 0) + rev;
         }
+        if (r.fee_structure !== 'Fixed') {
+          fullYearBudByName[r.client_name] = (fullYearBudByName[r.client_name] || 0) + rev;
+        }
       }
     }
 
@@ -259,7 +263,7 @@ export async function GET() {
       if (!parsed) continue;
       const { ry, rm } = parsed;
       if (ry === year - 1 && rm === month) pyMonthRev += rev;
-      if (ry === year - 1 && rm < month) pyYtdRev += rev;
+      if (ry === year - 1) pyYtdRev += rev;
     }
 
     const priorMonthsTotal = Object.values(actByName).reduce((a, c) => a + c.prior_rev, 0);
@@ -297,7 +301,7 @@ export async function GET() {
         vintage: act?.vintage ?? null,
         fee_structure: act?.fee_structure ?? surg?.fee_structure ?? '—',
         carveout: act?.carveout ?? carveoutLabel(surg?.carve_out),
-        ees: act?.ees ?? (surg?.ees ? parseInt(surg.ees) : null),
+        ees: (surg?.ees ? parseInt(surg.ees) : null) ?? act?.ees ?? null,
         // Procedures
         procs26_jan: procs26[0], procs26_feb: procs26[1], procs26_mar: procs26[2],
         procs26_apr_mtd: surg?.scheduled || null,
@@ -340,15 +344,10 @@ export async function GET() {
     }
     const totalRow: any = {
       client_name: 'Total Surgery Care Revenue', vintage: null, fee_structure: '—', carveout: '—', ees: null,
-      procs26_jan: Object.values(ytdProcByClient).reduce((a,c) => a + (c[1]||0), 0) || null,
-      procs26_feb: Object.values(ytdProcByClient).reduce((a,c) => a + (c[2]||0), 0) || null,
-      procs26_mar: Object.values(ytdProcByClient).reduce((a,c) => a + (c[3]||0), 0) || null,
+      procs26_jan: null, procs26_feb: null, procs26_mar: null,
       procs26_apr_mtd: totalScheduledProcs, procs26_apr_est: totalEomProcs,
       procs26_ytd: totalYtdActProcs + totalEomProcs,
-      procs25_jan: Object.values(priorProcByClient).reduce((a,c) => a + (c[1]||0), 0) || null,
-      procs25_feb: Object.values(priorProcByClient).reduce((a,c) => a + (c[2]||0), 0) || null,
-      procs25_mar: Object.values(priorProcByClient).reduce((a,c) => a + (c[3]||0), 0) || null,
-      procs25_apr: Object.values(priorProcByClient).reduce((a,c) => a + (c[4]||0), 0) || null,
+      procs25_jan: null, procs25_feb: null, procs25_mar: null, procs25_apr: null,
       procs25_ytd: totalPriorProcs || null,
       rev26_jan: totalMonthlyRev[1] ? Math.round(totalMonthlyRev[1] / 1000) : null,
       rev26_feb: totalMonthlyRev[2] ? Math.round(totalMonthlyRev[2] / 1000) : null,
@@ -372,7 +371,11 @@ export async function GET() {
       is_total: true,
     };
 
-    const top50 = [...allClients].slice(0, 50).concat([totalRow]);
+    const top50 = [...allClients]
+      .filter((r: any) => r.fee_structure !== 'Fixed')
+      .sort((a: any, b: any) => (fullYearBudByName[b.client_name] || 0) - (fullYearBudByName[a.client_name] || 0))
+      .slice(0, 50)
+      .concat([totalRow]);
     const allWithTotal = [...allClients, totalRow];
 
     // Helper to format date fields to YYYY-MM-DD
@@ -387,25 +390,37 @@ export async function GET() {
 
     // Cohort — only 2026 vintage clients
     const cohort = inputs
-      .filter((c: any) => String(c.cohort) === '2026' && c.care_hub_name && c.care_hub_name !== 'NA')
+      .filter((c: any) => String(c.cohort) === '2026')
       .map((c: any) => {
-        const code = c.care_hub_name;
-        const displayName = c.client || code;
-        const surg  = surgByName[displayName] || surgByName[code];
-        const act   = actByName[displayName] || actByName[code] || Object.entries(actByName).find(([k]) =>
-          k.toLowerCase().includes(displayName.toLowerCase()) || displayName.toLowerCase().includes(k.toLowerCase())
+        const name = c.care_hub_name;
+        const surg  = surgByName[name];
+        const act   = actByName[name] || Object.entries(actByName).find(([k]) =>
+          k.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(k.toLowerCase())
         )?.[1];
-        const funnelData = funnelByCode[code?.toUpperCase()] || funnelByCode[surg?.client_code?.toUpperCase()];
+        const funnelData = funnelByCode[name?.toUpperCase()] || funnelByCode[surg?.client_code?.toUpperCase()];
         const aprMtd  = surg?.scheduled_rev || 0;
-        const aprEom  = surgEomRev[displayName] || surgEomRev[code] || 0;
+        const aprEom  = surgEomRev[name] || 0;
         const priorRev = act?.prior_rev || 0;
         const ytdEst  = priorRev + aprEom;
-        const ytdActProcs = ytdPriorMonthsProcs[displayName] || ytdPriorMonthsProcs[code] || 0;
-        const ytdEomProcs26 = ytdActProcs + (surgEomProcs[displayName] || surgEomProcs[code] || 0);
+        const ytdActProcs = ytdPriorMonthsProcs[name] || 0;
+        const ytdEomProcs26 = ytdActProcs + (surgEomProcs[name] || 0);
         return {
           // Look up display name — care_hub_name is a code, find matching key in actByName/surgByName
-          client_name: c.client || name,
-          go_live_date: fmtDate(c.contract_start_date),
+          client_name: actByName[name]
+            ? name
+            : (Object.keys(actByName).find(k => k.toUpperCase() === name.toUpperCase())
+              || Object.keys(surgByName).find(k => k.toUpperCase() === name.toUpperCase())
+              || name),
+          go_live_date: (() => {
+            // Use go_live_date from actual_revenues if available
+            const matchKey = Object.keys(actByName).find(k => k.toUpperCase() === name.toUpperCase()) || (actByName[name] ? name : null);
+            if (matchKey && actByName[matchKey]?.vintage) {
+              // vintage is already the year, get go_live from actual row
+              const goLiveRow = actual.find((r: any) => r.client_name === matchKey && r.go_live_date);
+              if (goLiveRow) return fmtDate(goLiveRow.go_live_date);
+            }
+            return fmtDate(c.modeling_go_live) || fmtDate(c.contract_start_date);
+          })(),
           ees: c.ees,
           fee_structure: c.fee_structure || '—',
           carveout: carveoutLabel(c.carve_out),
@@ -418,7 +433,8 @@ export async function GET() {
           apr_revenue: Math.round(aprMtd / 1000),
           apr_eom_est: Math.round(aprEom / 1000),
           ytd_revenue: Math.round(ytdEst / 1000),
-          ytd_vs_budget_pct: budByName[c.client || name] ? parseFloat(((ytdEst - budByName[c.client || name]) / budByName[c.client || name] * 100).toFixed(1)) : null,
+          ytd_vs_budget_pct: null,
+          ytd_vs_model_pct: null,
         };
       }).sort((a: any, b: any) => (b.ytd_revenue || 0) - (a.ytd_revenue || 0));
 

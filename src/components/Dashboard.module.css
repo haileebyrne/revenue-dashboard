@@ -235,6 +235,7 @@
   user-select: none;
   border-right: 1px solid rgba(245,237,217,0.1);
   transition: background 0.15s;
+  text-align: center;
 }
 .th:hover { background: var(--teal-mid); }
 .th:last-child { border-right: none; }
@@ -254,6 +255,7 @@
   user-select: none;
   border-left: 2px dashed rgba(245,237,217,0.5) !important;
   border-right: 2px dashed rgba(245,237,217,0.5) !important;
+  text-align: center;
 }
 
 .right { text-align: right; }
