@@ -5,7 +5,8 @@ import styles from './Dashboard.module.css'
 
 function fmtM(v: number | null | undefined) {
   if (v == null) return '—'
-  return `$${(v / 1_000).toFixed(1)}M`
+  return `$${(v / 1_000_000).toFixed(1)}M`
+}M`
 }
 function fmtMoney(v: number | null | undefined) {
   if (v == null) return '—'
@@ -231,7 +232,7 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
           <ThEst label="Apr EOM Est ($k)" col="apr_eom_est" sort={sort} onSort={onSort} />
           <Th label="YTD Rev ($k)" col="ytd_revenue" sort={sort} onSort={onSort} right />
           <Th label="YTD vs budget" col="ytd_vs_budget_pct" sort={sort} onSort={onSort} right />
-          <Th label="YTD vs model" col="ytd_vs_model_pct" sort={sort} onSort={onSort} right />
+          
         </tr></thead>
         <tbody>
           {sorted.map((r: any, i: number) => (
@@ -250,7 +251,7 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
               <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtMoney(r.apr_eom_est)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.ytd_revenue)}</td>
               <td className={`${styles.td} ${styles.right}`}><PctBadge v={r.ytd_vs_budget_pct} /></td>
-              <td className={`${styles.td} ${styles.right}`}><PctBadge v={r.ytd_vs_model_pct} /></td>
+              
             </tr>
           ))}
         </tbody>
