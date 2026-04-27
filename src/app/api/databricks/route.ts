@@ -474,12 +474,16 @@ export async function GET() {
       if (dt === 'budget' && ry === year && rm === month) {
         if (cat === 'variable_fee') budgetVarFeeRev += rev;
         else if (cat === 'fixed_fee') budgetFixedFeeRev = rev;
+        else if (cat === 'proc_count' && String(r.revenue_type) === 'Variable Procs') budgetVarProcs = rev;
+        else if (cat === 'proc_count' && String(r.revenue_type) === 'Fixed Procs') budgetFixedProcs = rev;
         else budgetOtherFeeRev += rev;
       }
       // OKR monthly
       if (dt === 'okr' && ry === year && rm === month) {
         if (cat === 'variable_fee') okrVarFeeRev += rev;
         else if (cat === 'fixed_fee') okrFixedFeeRev = rev;
+        else if (cat === 'proc_count' && String(r.revenue_type) === 'Variable Procs') okrVarProcs = rev;
+        else if (cat === 'proc_count' && String(r.revenue_type) === 'Fixed Procs') okrFixedProcs = rev;
         else okrOtherFeeRev += rev;
       }
     }
@@ -503,24 +507,22 @@ export async function GET() {
     const pyTotalMtd = toM(pyMonthRev + pyFixedMtd + pyOtherMtd);
     const pyTotalEom = toM(pyMonthRev + pyFixedMtd + pyOtherMtd); // PY full month
 
-    const budgetTotalMtd = toM((budgetVarFeeRev || curBudRev) * scaleDownFactor + budgetFixedFeeRev * scaleDownFactor + budgetOtherFeeRev * scaleDownFactor);
-    const budgetTotalEom = toM((budgetVarFeeRev || curBudRev) + budgetFixedFeeRev + budgetOtherFeeRev);
+    const budVarRev = budgetVarFeeRev || curBudRev;
+    const budgetTotalMtd = toM((budVarRev + budgetFixedFeeRev + budgetOtherFeeRev) * scaleDownFactor);
+    const budgetTotalEom = toM(budVarRev + budgetFixedFeeRev + budgetOtherFeeRev);
 
-    const okrTotalMtd = toM((okrVarFeeRev || curBudRev * 1.1) * scaleDownFactor + okrFixedFeeRev * scaleDownFactor + okrOtherFeeRev * scaleDownFactor);
-    const okrTotalEom = toM((okrVarFeeRev || curBudRev * 1.1) + okrFixedFeeRev + okrOtherFeeRev);
+    const okrVarRev = okrVarFeeRev || budVarRev * 1.1;
+    const okrTotalMtd = toM((okrVarRev + okrFixedFeeRev + okrOtherFeeRev) * scaleDownFactor);
+    const okrTotalEom = toM(okrVarRev + okrFixedFeeRev + okrOtherFeeRev);
 
     // Procedure counts
     const pyVarProcs = Object.values(priorProcByClient).reduce((a, c) => a + (c[month] || 0), 0);
     const pyFixedProcs = 465; // hardcoded from Data Sources row 5 (avg monthly 2025)
     const pyTotalProcs = pyVarProcs + pyFixedProcs;
 
-    const budgetVarProcs = Math.round((budgetVarFeeRev || curBudRev) / Math.max(totalScheduledRev / Math.max(totalScheduledProcs, 1), 1));
-    const budgetFixedProcs = 521; // from Data Sources row 22
-    const budgetTotalProcs = budgetVarProcs + budgetFixedProcs;
+    const budgetTotalProcs = Math.round((budgetVarProcs || 0) + (budgetFixedProcs || 521));
     const budgetTotalProcsEom = Math.round(budgetTotalProcs / scaleDownFactor);
-
-    const okrVarProcs = Math.round(budgetVarProcs * 1.4); // OKR from Data Sources row 40
-    const okrTotalProcs = okrVarProcs + budgetFixedProcs;
+    const okrTotalProcs = Math.round((okrVarProcs || 0) + (okrFixedProcs || 521));
 
     const actTotalProcs = totalScheduledProcs;
     const actTotalProcsEom = totalEomProcs;
