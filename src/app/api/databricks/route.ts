@@ -259,7 +259,7 @@ export async function GET() {
       if (!parsed) continue;
       const { ry, rm } = parsed;
       if (ry === year - 1 && rm === month) pyMonthRev += rev;
-      if (ry === year - 1) pyYtdRev += rev;
+      if (ry === year - 1 && rm < month) pyYtdRev += rev;
     }
 
     const priorMonthsTotal = Object.values(actByName).reduce((a, c) => a + c.prior_rev, 0);
