@@ -396,12 +396,15 @@ export async function GET() {
         const ytdEomProcs26 = ytdActProcs + (surgEomProcs[name] || 0);
         return {
           // Look up display name — care_hub_name is a code, find matching key in actByName/surgByName
-          client_name: actByName[name]
-            ? name
-            : (Object.keys(actByName).find(k => k.toUpperCase() === name.toUpperCase())
-              || Object.keys(surgByName).find(k => k.toUpperCase() === name.toUpperCase())
-              || name),
-          go_live_date: c.cohort ? String(c.cohort) : null,
+          client_name: (() => {
+            if (actByName[name]) return name;
+            const actMatch = Object.keys(actByName).find(k => k.toUpperCase() === name.toUpperCase());
+            if (actMatch) return actMatch;
+            const surgMatch = Object.keys(surgByName).find(k => k.toUpperCase() === name.toUpperCase());
+            if (surgMatch) return surgMatch;
+            return name;
+          })(),
+          go_live_date: fmtDate(c.contract_start_date),
           ees: c.ees,
           fee_structure: c.fee_structure || '—',
           carveout: carveoutLabel(c.carve_out),
