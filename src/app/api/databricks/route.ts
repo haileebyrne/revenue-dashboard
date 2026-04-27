@@ -392,35 +392,22 @@ export async function GET() {
     const cohort = inputs
       .filter((c: any) => String(c.cohort) === '2026')
       .map((c: any) => {
-        const name = c.care_hub_name;
-        const surg  = surgByName[name];
-        const act   = actByName[name] || Object.entries(actByName).find(([k]) =>
+        const code = c.care_hub_name;
+        const name = c.client || code;
+        const surg  = surgByName[name] || surgByName[code];
+        const act   = actByName[name] || actByName[code] || Object.entries(actByName).find(([k]) =>
           k.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(k.toLowerCase())
         )?.[1];
-        const funnelData = funnelByCode[name?.toUpperCase()] || funnelByCode[surg?.client_code?.toUpperCase()];
+        const funnelData = funnelByCode[code?.toUpperCase()] || funnelByCode[surg?.client_code?.toUpperCase()];
         const aprMtd  = surg?.scheduled_rev || 0;
-        const aprEom  = surgEomRev[name] || 0;
+        const aprEom  = surgEomRev[name] || surgEomRev[code] || 0;
         const priorRev = act?.prior_rev || 0;
         const ytdEst  = priorRev + aprEom;
-        const ytdActProcs = ytdPriorMonthsProcs[name] || 0;
-        const ytdEomProcs26 = ytdActProcs + (surgEomProcs[name] || 0);
+        const ytdActProcs = ytdPriorMonthsProcs[name] || ytdPriorMonthsProcs[code] || 0;
+        const ytdEomProcs26 = ytdActProcs + (surgEomProcs[name] || surgEomProcs[code] || 0);
         return {
-          // Look up display name — care_hub_name is a code, find matching key in actByName/surgByName
-          client_name: actByName[name]
-            ? name
-            : (Object.keys(actByName).find(k => k.toUpperCase() === name.toUpperCase())
-              || Object.keys(surgByName).find(k => k.toUpperCase() === name.toUpperCase())
-              || name),
-          go_live_date: (() => {
-            // Use go_live_date from actual_revenues if available
-            const matchKey = Object.keys(actByName).find(k => k.toUpperCase() === name.toUpperCase()) || (actByName[name] ? name : null);
-            if (matchKey && actByName[matchKey]?.vintage) {
-              // vintage is already the year, get go_live from actual row
-              const goLiveRow = actual.find((r: any) => r.client_name === matchKey && r.go_live_date);
-              if (goLiveRow) return fmtDate(goLiveRow.go_live_date);
-            }
-            return fmtDate(c.modeling_go_live) || fmtDate(c.contract_start_date);
-          })(),
+                    client_name: c.client || code,
+          go_live_date: fmtDate(c.contract_start_date),
           ees: c.ees,
           fee_structure: c.fee_structure || '—',
           carveout: carveoutLabel(c.carve_out),
