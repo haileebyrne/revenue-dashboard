@@ -85,7 +85,7 @@ function ClientTable({ rows }: { rows: any[] }) {
   const [carve, setCarve] = useState('')
   const [vintage, setVintage] = useState('')
   const onSort = (col: string) => setSort(s => ({ col, dir: s.col === col ? (s.dir === 1 ? -1 : 1) : -1 }))
-  const data = rows.filter(r => !r.is_total)
+  const data = rows.filter(r => !r.is_total && r.client_name !== 'Total Surgery Care Revenue')
   const totals = rows.filter(r => r.is_total)
   const vintages = uniqueVintages(data)
   const filtered = data.filter(r => {
@@ -201,7 +201,7 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
   const [carve, setCarve] = useState('')
   const [vintage, setVintage] = useState('')
   const onSort = (col: string) => setSort(s => ({ col, dir: s.col === col ? (s.dir === 1 ? -1 : 1) : -1 }))
-  const data = rows.filter(r => !r.is_total)
+  const data = rows.filter(r => !r.is_total && r.client_name !== 'Total Surgery Care Revenue')
   const totals = rows.filter(r => r.is_total)
   const vintages = uniqueVintages(data)
   const filtered = data.filter(r => {

@@ -267,7 +267,6 @@ export async function GET() {
     const ytdRevTotal = priorMonthsTotal + totalEomRev;
 
     // Build all clients
-    let debugLogged = false;
     const allClientNames = new Set([...Object.keys(actByName), ...Object.keys(surgByName)]);
 
     const allClients = Array.from(allClientNames).map(name => {
@@ -288,14 +287,8 @@ export async function GET() {
       const procs25 = [1,2,3,4].map(m => priorProcByClient[name]?.[m] ?? null);
 
       // Monthly revenue arrays
-      // DEBUG: log first client's monthly_rev to diagnose
-      if (act?.monthly_rev && Object.keys(act.monthly_rev).length > 0 && !debugLogged) {
-        console.log(`[DEBUG] ${name} monthly_rev raw:`, act.monthly_rev);
-        console.log(`[DEBUG] ${name} py_monthly_rev raw:`, act.py_monthly_rev);
-        debugLogged = true;
-      }
-      const rev26 = [1,2,3].map(m => act?.monthly_rev[m] ? Math.round(act.monthly_rev[m] / 1000) : null);
-      const rev25 = [1,2,3,4].map(m => act?.py_monthly_rev[m] ? Math.round(act.py_monthly_rev[m] / 1000) : null);
+      const rev26 = [1,2,3].map(m => (act?.monthly_rev?.[m] != null && act.monthly_rev[m] !== 0) ? Math.round(act.monthly_rev[m] / 1000) : null);
+      const rev25 = [1,2,3,4].map(m => (act?.py_monthly_rev?.[m] != null && act.py_monthly_rev[m] !== 0) ? Math.round(act.py_monthly_rev[m] / 1000) : null);
       const aprRevEst = Math.round(aprEom / 1000);
 
       const avgRevPerProc = ytdEomProcs26 > 0 ? Math.round(ytdEst / ytdEomProcs26) : null;
@@ -334,16 +327,35 @@ export async function GET() {
       };
     }).sort((a: any, b: any) => (b.ytd_revenue_26 || 0) - (a.ytd_revenue_26 || 0));
 
-    // Total row
+    // Total row — sum monthly actuals from actByName
     const totalYtdActProcs = Object.values(ytdPriorMonthsProcs).reduce((a, b) => a + b, 0);
+    const totalMonthlyRev: Record<number, number> = {};
+    const totalPyMonthlyRev: Record<number, number> = {};
+    for (const act of Object.values(actByName)) {
+      for (const [m, v] of Object.entries(act.monthly_rev)) {
+        totalMonthlyRev[Number(m)] = (totalMonthlyRev[Number(m)] || 0) + v;
+      }
+      for (const [m, v] of Object.entries(act.py_monthly_rev)) {
+        totalPyMonthlyRev[Number(m)] = (totalPyMonthlyRev[Number(m)] || 0) + v;
+      }
+    }
     const totalRow: any = {
       client_name: 'Total Surgery Care Revenue', vintage: null, fee_structure: '—', carveout: '—', ees: null,
-      procs26_ytd: totalYtdActProcs + totalEomProcs,
-      procs25_ytd: totalPriorProcs || null,
+      procs26_jan: null, procs26_feb: null, procs26_mar: null,
       procs26_apr_mtd: totalScheduledProcs, procs26_apr_est: totalEomProcs,
+      procs26_ytd: totalYtdActProcs + totalEomProcs,
+      procs25_jan: null, procs25_feb: null, procs25_mar: null, procs25_apr: null,
+      procs25_ytd: totalPriorProcs || null,
+      rev26_jan: totalMonthlyRev[1] ? Math.round(totalMonthlyRev[1] / 1000) : null,
+      rev26_feb: totalMonthlyRev[2] ? Math.round(totalMonthlyRev[2] / 1000) : null,
+      rev26_mar: totalMonthlyRev[3] ? Math.round(totalMonthlyRev[3] / 1000) : null,
       rev26_apr_mtd: Math.round(totalScheduledRev / 1000),
       rev26_apr_est: Math.round(totalEomRev / 1000),
       rev26_ytd: Math.round(ytdRevTotal / 1000),
+      rev25_jan: totalPyMonthlyRev[1] ? Math.round(totalPyMonthlyRev[1] / 1000) : null,
+      rev25_feb: totalPyMonthlyRev[2] ? Math.round(totalPyMonthlyRev[2] / 1000) : null,
+      rev25_mar: totalPyMonthlyRev[3] ? Math.round(totalPyMonthlyRev[3] / 1000) : null,
+      rev25_apr: totalPyMonthlyRev[4] ? Math.round(totalPyMonthlyRev[4] / 1000) : null,
       rev25_ytd: pyYtdRev ? Math.round(pyYtdRev / 1000) : null,
       ytd_procedures_26: totalYtdActProcs + totalEomProcs,
       ytd_procedures_25: totalPriorProcs || null,
@@ -386,8 +398,8 @@ export async function GET() {
         const ytdActProcs = ytdPriorMonthsProcs[name] || 0;
         const ytdEomProcs26 = ytdActProcs + (surgEomProcs[name] || 0);
         return {
-          client_name: name,
-          go_live_date: fmtDate(c.modeling_go_live) || fmtDate(c.contract_start_date),
+          client_name: actByName[name] ? name : (Object.keys(actByName).find(k => k.toUpperCase() === name.toUpperCase()) || Object.keys(surgByName).find(k => k.toUpperCase() === name.toUpperCase()) || name),
+          go_live_date: fmtDate(c.contract_start_date),
           ees: c.ees,
           fee_structure: c.fee_structure || '—',
           carveout: carveoutLabel(c.carve_out),
