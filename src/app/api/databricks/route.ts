@@ -340,10 +340,15 @@ export async function GET() {
     }
     const totalRow: any = {
       client_name: 'Total Surgery Care Revenue', vintage: null, fee_structure: '—', carveout: '—', ees: null,
-      procs26_jan: null, procs26_feb: null, procs26_mar: null,
+      procs26_jan: Object.values(ytdProcByClient).reduce((a,c) => a + (c[1]||0), 0) || null,
+      procs26_feb: Object.values(ytdProcByClient).reduce((a,c) => a + (c[2]||0), 0) || null,
+      procs26_mar: Object.values(ytdProcByClient).reduce((a,c) => a + (c[3]||0), 0) || null,
       procs26_apr_mtd: totalScheduledProcs, procs26_apr_est: totalEomProcs,
       procs26_ytd: totalYtdActProcs + totalEomProcs,
-      procs25_jan: null, procs25_feb: null, procs25_mar: null, procs25_apr: null,
+      procs25_jan: Object.values(priorProcByClient).reduce((a,c) => a + (c[1]||0), 0) || null,
+      procs25_feb: Object.values(priorProcByClient).reduce((a,c) => a + (c[2]||0), 0) || null,
+      procs25_mar: Object.values(priorProcByClient).reduce((a,c) => a + (c[3]||0), 0) || null,
+      procs25_apr: Object.values(priorProcByClient).reduce((a,c) => a + (c[4]||0), 0) || null,
       procs25_ytd: totalPriorProcs || null,
       rev26_jan: totalMonthlyRev[1] ? Math.round(totalMonthlyRev[1] / 1000) : null,
       rev26_feb: totalMonthlyRev[2] ? Math.round(totalMonthlyRev[2] / 1000) : null,
