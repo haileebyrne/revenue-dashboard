@@ -382,18 +382,19 @@ export async function GET() {
     const cohort = inputs
       .filter((c: any) => String(c.cohort) === '2026' && c.care_hub_name && c.care_hub_name !== 'NA')
       .map((c: any) => {
-        const name = c.care_hub_name;
-        const surg  = surgByName[name];
-        const act   = actByName[name] || Object.entries(actByName).find(([k]) =>
-          k.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(k.toLowerCase())
+        const code = c.care_hub_name;
+        const displayName = c.client || code;
+        const surg  = surgByName[displayName] || surgByName[code];
+        const act   = actByName[displayName] || actByName[code] || Object.entries(actByName).find(([k]) =>
+          k.toLowerCase().includes(displayName.toLowerCase()) || displayName.toLowerCase().includes(k.toLowerCase())
         )?.[1];
-        const funnelData = funnelByCode[name?.toUpperCase()] || funnelByCode[surg?.client_code?.toUpperCase()];
+        const funnelData = funnelByCode[code?.toUpperCase()] || funnelByCode[surg?.client_code?.toUpperCase()];
         const aprMtd  = surg?.scheduled_rev || 0;
-        const aprEom  = surgEomRev[name] || 0;
+        const aprEom  = surgEomRev[displayName] || surgEomRev[code] || 0;
         const priorRev = act?.prior_rev || 0;
         const ytdEst  = priorRev + aprEom;
-        const ytdActProcs = ytdPriorMonthsProcs[name] || 0;
-        const ytdEomProcs26 = ytdActProcs + (surgEomProcs[name] || 0);
+        const ytdActProcs = ytdPriorMonthsProcs[displayName] || ytdPriorMonthsProcs[code] || 0;
+        const ytdEomProcs26 = ytdActProcs + (surgEomProcs[displayName] || surgEomProcs[code] || 0);
         return {
           // Look up display name — care_hub_name is a code, find matching key in actByName/surgByName
           client_name: c.client || name,
