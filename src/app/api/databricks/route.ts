@@ -223,14 +223,11 @@ export async function GET() {
       }
       const rev = parseRevenue(r.actual_revenue);
       const parsed = parseYearMonth(r.revenue_month);
-      if (n === 'North Carolina State Health Plan') {
-        console.log(`[NC DEBUG] raw:`, r.revenue_month, '| typeof:', typeof r.revenue_month, '| parsed:', parsed, '| rev:', rev);
-      }
       if (!parsed) continue;
       const { ry, rm } = parsed;
-      if (ry === year && rm !== month) {
+      if (ry === year && rm < month) {
         actByName[n].prior_rev += rev;
-        actByName[n].monthly_rev[rm] = (actByName[n].monthly_rev[rm] || 0) + rev;
+        actByName[n].monthly_rev[Number(rm)] = (actByName[n].monthly_rev[Number(rm)] || 0) + rev;
       }
       if (ry === year - 1) {
         actByName[n].py_rev += rev;
@@ -383,7 +380,7 @@ export async function GET() {
 
     // Cohort — only 2026 vintage clients
     const cohort = inputs
-      .filter((c: any) => String(c.cohort) === '2026')
+      .filter((c: any) => String(c.cohort) === '2026' && c.care_hub_name && c.care_hub_name !== 'NA')
       .map((c: any) => {
         const name = c.care_hub_name;
         const surg  = surgByName[name];
@@ -398,8 +395,13 @@ export async function GET() {
         const ytdActProcs = ytdPriorMonthsProcs[name] || 0;
         const ytdEomProcs26 = ytdActProcs + (surgEomProcs[name] || 0);
         return {
-          client_name: actByName[name] ? name : (Object.keys(actByName).find(k => k.toUpperCase() === name.toUpperCase()) || Object.keys(surgByName).find(k => k.toUpperCase() === name.toUpperCase()) || name),
-          go_live_date: fmtDate(c.contract_start_date),
+          // Look up display name — care_hub_name is a code, find matching key in actByName/surgByName
+          client_name: actByName[name]
+            ? name
+            : (Object.keys(actByName).find(k => k.toUpperCase() === name.toUpperCase())
+              || Object.keys(surgByName).find(k => k.toUpperCase() === name.toUpperCase())
+              || name),
+          go_live_date: c.cohort ? String(c.cohort) : null,
           ees: c.ees,
           fee_structure: c.fee_structure || '—',
           carveout: carveoutLabel(c.carve_out),
