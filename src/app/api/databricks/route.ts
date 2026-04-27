@@ -420,8 +420,7 @@ export async function GET() {
           apr_revenue: Math.round(aprMtd / 1000),
           apr_eom_est: Math.round(aprEom / 1000),
           ytd_revenue: Math.round(ytdEst / 1000),
-          ytd_vs_budget_pct: null,
-          ytd_vs_model_pct: null,
+          ytd_vs_budget_pct: (budByName[name] || budByName[code]) ? parseFloat(((ytdEst - (budByName[name] || budByName[code])) / (budByName[name] || budByName[code]) * 100).toFixed(1)) : null,
         };
       }).sort((a: any, b: any) => (b.ytd_revenue || 0) - (a.ytd_revenue || 0));
 
