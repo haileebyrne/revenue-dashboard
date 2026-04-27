@@ -3,9 +3,12 @@ import { useState, useCallback, useEffect } from 'react'
 import type { DashboardData, Top50Client, CohortClient } from '@/lib/types'
 import styles from './Dashboard.module.css'
 
-function fmtMoney(v: number | null | undefined, unit = 'k') {
+function fmtM(v: number | null | undefined) {
   if (v == null) return '—'
-  if (unit === 'M') return `$${(v / 1_000_000).toFixed(1)}M`
+  return `$${(v / 1_000).toFixed(1)}M`
+}
+function fmtMoney(v: number | null | undefined) {
+  if (v == null) return '—'
   return `$${Number(v).toLocaleString()}`
 }
 function fmtNum(v: number | null | undefined) {
@@ -16,7 +19,11 @@ function fmtPct(v: number | null | undefined) {
   if (v == null) return null
   return { value: v, label: `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`, pos: v >= 0 }
 }
-function uniqueVintages(rows: (Top50Client | CohortClient)[]) {
+function fmtMultiple(v: number | null | undefined) {
+  if (v == null) return '—'
+  return `${v.toFixed(2)}x`
+}
+function uniqueVintages(rows: any[]) {
   return [...new Set(rows.filter(r => r.vintage).map(r => String(r.vintage)))].sort()
 }
 type SortDir = 1 | -1
@@ -66,8 +73,9 @@ function Filters({ search, onSearch, fee, onFee, carve, onCarve, vintage, onVint
     </div>
   )
 }
-function ClientTable({ rows }: { rows: Top50Client[] }) {
-  const [sort, setSort] = useState<SortState>({ col: 'ytd_revenue_26', dir: -1 })
+
+function ClientTable({ rows }: { rows: any[] }) {
+  const [sort, setSort] = useState<SortState>({ col: 'rev26_ytd', dir: -1 })
   const [search, setSearch] = useState('')
   const [fee, setFee] = useState('')
   const [carve, setCarve] = useState('')
@@ -83,61 +91,108 @@ function ClientTable({ rows }: { rows: Top50Client[] }) {
     if (vintage && String(r.vintage) !== vintage) return false
     return true
   })
-  const sorted = sortRows(filtered as unknown as Record<string, unknown>[], sort) as unknown as Top50Client[]
+  const sorted = sortRows(filtered as unknown as Record<string, unknown>[], sort) as unknown as any[]
+
+  const renderRow = (r: any, key: string | number, isTot = false) => (
+    <tr key={key} className={`${styles.row} ${isTot ? styles.totalRow : ''}`}>
+      <td className={`${styles.td} ${styles.clientName}`} title={r.client_name}>{r.client_name}</td>
+      <td className={styles.td}>{isTot ? '—' : (r.vintage ?? '—')}</td>
+      <td className={styles.td}>{isTot ? '—' : r.fee_structure}</td>
+      <td className={styles.td}>{isTot ? '—' : (r.carveout ?? '—')}</td>
+      <td className={`${styles.td} ${styles.right}`}>{isTot ? '—' : fmtNum(r.ees)}</td>
+      {/* Procedures 26 */}
+      <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.procs26_jan)}</td>
+      <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.procs26_feb)}</td>
+      <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.procs26_mar)}</td>
+      <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.procs26_apr_mtd)}</td>
+      <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtNum(r.procs26_apr_est)}</td>
+      <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtNum(r.procs26_ytd)}</td>
+      {/* Procedures 25 */}
+      <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.procs25_jan)}</td>
+      <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.procs25_feb)}</td>
+      <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.procs25_mar)}</td>
+      <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.procs25_apr)}</td>
+      <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtNum(r.procs25_ytd)}</td>
+      {/* Revenue 26 */}
+      <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev26_jan)}</td>
+      <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev26_feb)}</td>
+      <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev26_mar)}</td>
+      <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev26_apr_mtd)}</td>
+      <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtMoney(r.rev26_apr_est)}</td>
+      <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtMoney(r.rev26_ytd)}</td>
+      {/* Revenue 25 */}
+      <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev25_jan)}</td>
+      <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev25_feb)}</td>
+      <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev25_mar)}</td>
+      <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev25_apr)}</td>
+      <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtMoney(r.rev25_ytd)}</td>
+      {/* KPIs */}
+      <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.avg_rev_per_proc)}</td>
+      <td className={`${styles.td} ${styles.right}`}><PctBadge v={r.ytd_vs_py_pct} /></td>
+      <td className={`${styles.td} ${styles.right}`}><PctBadge v={r.ytd_vs_budget_pct} /></td>
+    </tr>
+  )
+
+  const TH = (label: string, col: string) => <Th label={label} col={col} sort={sort} onSort={onSort} right />
+  const THL = (label: string, col: string) => <Th label={label} col={col} sort={sort} onSort={onSort} />
+
   return (
     <>
       <Filters search={search} onSearch={setSearch} fee={fee} onFee={setFee} carve={carve} onCarve={setCarve} vintage={vintage} onVintage={setVintage} vintages={vintages} count={filtered.length} />
       <div className={styles.tblWrap}><div className={styles.tblScroll}><table className={styles.table}>
-        <thead><tr>
-          <Th label="Client" col="client_name" sort={sort} onSort={onSort} />
-          <Th label="Vintage" col="vintage" sort={sort} onSort={onSort} />
-          <Th label="Fee structure" col="fee_structure" sort={sort} onSort={onSort} />
-          <Th label="Carve-out" col="carveout" sort={sort} onSort={onSort} />
-          <Th label="EEs" col="ees" sort={sort} onSort={onSort} right />
-          <Th label="YTD proc 26" col="ytd_procedures_26" sort={sort} onSort={onSort} right />
-          <Th label="Apr MTD ($k)" col="apr_revenue_26" sort={sort} onSort={onSort} right />
-          <Th label="Apr EOM Est ($k)" col="apr_eom_est" sort={sort} onSort={onSort} right />
-          <Th label="YTD rev 26 ($k)" col="ytd_revenue_26" sort={sort} onSort={onSort} right />
-          <Th label="YTD rev 25 ($k)" col="ytd_revenue_25" sort={sort} onSort={onSort} right />
-          <Th label="YTD vs PY" col="ytd_vs_py_pct" sort={sort} onSort={onSort} right />
-          <Th label="YTD vs budget" col="ytd_vs_budget_pct" sort={sort} onSort={onSort} right />
-        </tr></thead>
+        <thead>
+          <tr>
+            <th className={styles.th} rowSpan={2}>Client</th>
+            <th className={styles.th} rowSpan={2}>Vintage</th>
+            <th className={styles.th} rowSpan={2}>Fee Structure</th>
+            <th className={styles.th} rowSpan={2}>Carve-out</th>
+            <th className={`${styles.th} ${styles.right}`} rowSpan={2}>EEs</th>
+            <th className={`${styles.th} ${styles.right}`} colSpan={6} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>YTD Procedures '26</th>
+            <th className={`${styles.th} ${styles.right}`} colSpan={5} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>YTD Procedures '25</th>
+            <th className={`${styles.th} ${styles.right}`} colSpan={6} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Monthly Revenue '26 ($k)</th>
+            <th className={`${styles.th} ${styles.right}`} colSpan={5} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Monthly Revenue '25 ($k)</th>
+            <th className={`${styles.th} ${styles.right}`} rowSpan={2}>Avg Rev/Proc</th>
+            <th className={`${styles.th} ${styles.right}`} rowSpan={2}>YTD vs PY</th>
+            <th className={`${styles.th} ${styles.right}`} rowSpan={2}>YTD vs Budg</th>
+          </tr>
+          <tr>
+            {/* Procs 26 */}
+            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Jan</th>
+            <th className={`${styles.th} ${styles.right}`}>Feb</th>
+            <th className={`${styles.th} ${styles.right}`}>Mar</th>
+            <th className={`${styles.th} ${styles.right}`}>Apr MTD</th>
+            <th className={`${styles.th} ${styles.right} ${styles.estCell}`}>Apr Est</th>
+            <th className={`${styles.th} ${styles.right}`}>YTD</th>
+            {/* Procs 25 */}
+            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Jan</th>
+            <th className={`${styles.th} ${styles.right}`}>Feb</th>
+            <th className={`${styles.th} ${styles.right}`}>Mar</th>
+            <th className={`${styles.th} ${styles.right}`}>Apr</th>
+            <th className={`${styles.th} ${styles.right}`}>YTD</th>
+            {/* Rev 26 */}
+            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Jan</th>
+            <th className={`${styles.th} ${styles.right}`}>Feb</th>
+            <th className={`${styles.th} ${styles.right}`}>Mar</th>
+            <th className={`${styles.th} ${styles.right}`}>Apr MTD</th>
+            <th className={`${styles.th} ${styles.right} ${styles.estCell}`}>Apr Est</th>
+            <th className={`${styles.th} ${styles.right}`}>YTD</th>
+            {/* Rev 25 */}
+            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Jan</th>
+            <th className={`${styles.th} ${styles.right}`}>Feb</th>
+            <th className={`${styles.th} ${styles.right}`}>Mar</th>
+            <th className={`${styles.th} ${styles.right}`}>Apr</th>
+            <th className={`${styles.th} ${styles.right}`}>YTD</th>
+          </tr>
+        </thead>
         <tbody>
-          {sorted.map((r, i) => (
-            <tr key={i} className={styles.row}>
-              <td className={`${styles.td} ${styles.clientName}`} title={r.client_name}>{r.client_name}</td>
-              <td className={styles.td}>{r.vintage ?? '—'}</td>
-              <td className={styles.td}>{r.fee_structure}</td>
-              <td className={styles.td}>{r.carveout ?? '—'}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ees)}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures_26)}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.apr_revenue_26)}</td>
-              <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtMoney(r.apr_eom_est)}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.ytd_revenue_26)}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.ytd_revenue_25)}</td>
-              <td className={`${styles.td} ${styles.right}`}><PctBadge v={r.ytd_vs_py_pct} /></td>
-              <td className={`${styles.td} ${styles.right}`}><PctBadge v={r.ytd_vs_budget_pct} /></td>
-            </tr>
-          ))}
-          {totals.map((r, i) => (
-            <tr key={`tot-${i}`} className={`${styles.row} ${styles.totalRow}`}>
-              <td className={`${styles.td} ${styles.clientName}`}>{r.client_name}</td>
-              <td className={styles.td}>—</td><td className={styles.td}>—</td><td className={styles.td}>—</td>
-              <td className={`${styles.td} ${styles.right}`}>—</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures_26)}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.apr_revenue_26)}</td>
-              <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtMoney(r.apr_eom_est)}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.ytd_revenue_26)}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.ytd_revenue_25)}</td>
-              <td className={`${styles.td} ${styles.right}`}><PctBadge v={r.ytd_vs_py_pct} /></td>
-              <td className={`${styles.td} ${styles.right}`}><PctBadge v={r.ytd_vs_budget_pct} /></td>
-            </tr>
-          ))}
+          {sorted.map((r, i) => renderRow(r, i))}
+          {totals.map((r, i) => renderRow(r, `tot-${i}`, true))}
         </tbody>
       </table></div></div>
     </>
   )
 }
+
 function CohortTable({ rows }: { rows: CohortClient[] }) {
   const [sort, setSort] = useState<SortState>({ col: 'ytd_revenue', dir: -1 })
   const [search, setSearch] = useState('')
@@ -155,7 +210,7 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
     if (vintage && String(r.vintage) !== vintage) return false
     return true
   })
-  const sorted = sortRows(filtered as unknown as Record<string, unknown>[], sort) as unknown as CohortClient[]
+  const sorted = sortRows(filtered as unknown as Record<string, unknown>[], sort) as unknown as any[]
   return (
     <>
       <Filters search={search} onSearch={setSearch} fee={fee} onFee={setFee} carve={carve} onCarve={setCarve} vintage={vintage} onVintage={setVintage} vintages={vintages} count={filtered.length} />
@@ -166,34 +221,29 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
           <Th label="EEs" col="ees" sort={sort} onSort={onSort} right />
           <Th label="Fee structure" col="fee_structure" sort={sort} onSort={onSort} />
           <Th label="Carve-out" col="carveout" sort={sort} onSort={onSort} />
-          <Th label="YTD proc" col="ytd_procedures" sort={sort} onSort={onSort} right />
+          <Th label="YTD Calls" col="ytd_first_calls" sort={sort} onSort={onSort} right />
+          <Th label="YTD Cases" col="ytd_new_cases" sort={sort} onSort={onSort} right />
+          <Th label="EOP Cases" col="eop_active_cases" sort={sort} onSort={onSort} right />
+          <Th label="YTD Consults" col="ytd_consults" sort={sort} onSort={onSort} right />
+          <Th label="YTD Proc" col="ytd_procedures" sort={sort} onSort={onSort} right />
           <Th label="Apr MTD ($k)" col="apr_revenue" sort={sort} onSort={onSort} right />
           <Th label="Apr EOM Est ($k)" col="apr_eom_est" sort={sort} onSort={onSort} right />
-          <Th label="YTD rev ($k)" col="ytd_revenue" sort={sort} onSort={onSort} right />
+          <Th label="YTD Rev ($k)" col="ytd_revenue" sort={sort} onSort={onSort} right />
           <Th label="YTD vs budget" col="ytd_vs_budget_pct" sort={sort} onSort={onSort} right />
           <Th label="YTD vs model" col="ytd_vs_model_pct" sort={sort} onSort={onSort} right />
         </tr></thead>
         <tbody>
-          {sorted.map((r, i) => (
+          {sorted.map((r: any, i: number) => (
             <tr key={i} className={styles.row}>
               <td className={`${styles.td} ${styles.clientName}`} title={r.client_name}>{r.client_name}</td>
               <td className={styles.td}>{r.go_live_date ?? '—'}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ees)}</td>
               <td className={styles.td}>{r.fee_structure}</td>
               <td className={styles.td}>{r.carveout ?? '—'}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures)}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.apr_revenue)}</td>
-              <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtMoney(r.apr_eom_est)}</td>
-              <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.ytd_revenue)}</td>
-              <td className={`${styles.td} ${styles.right}`}><PctBadge v={r.ytd_vs_budget_pct} /></td>
-              <td className={`${styles.td} ${styles.right}`}><PctBadge v={r.ytd_vs_model_pct} /></td>
-            </tr>
-          ))}
-          {totals.map((r, i) => (
-            <tr key={`tot-${i}`} className={`${styles.row} ${styles.totalRow}`}>
-              <td className={`${styles.td} ${styles.clientName}`}>{r.client_name}</td>
-              <td className={styles.td}>—</td><td className={`${styles.td} ${styles.right}`}>—</td>
-              <td className={styles.td}>—</td><td className={styles.td}>—</td>
+              <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_first_calls)}</td>
+              <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_new_cases)}</td>
+              <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.eop_active_cases)}</td>
+              <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_consults)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtNum(r.ytd_procedures)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.apr_revenue)}</td>
               <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtMoney(r.apr_eom_est)}</td>
@@ -207,14 +257,64 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
     </>
   )
 }
+
+function MtdPerformance({ data }: { data: any }) {
+  if (!data) return <div className={styles.tblWrap} style={{padding:'24px', color:'var(--text-3)'}}>No MTD data available</div>
+  const fmtDollar = (v: number | null) => v == null ? '—' : v >= 0 ? `+$${(v/1000000).toFixed(2)}M` : `-$${(Math.abs(v)/1000000).toFixed(2)}M`
+  const fmtAmt = (v: number | null) => v == null ? '—' : `$${(v/1000000).toFixed(2)}M`
+  const fmtX = (v: number | null) => v == null ? '—' : `${v.toFixed(2)}x`
+  const rows = [
+    { label: 'Prior Year', mtd: data.vs_py_mtd, eom: data.vs_py_eom, var_mtd: data.var_vs_py_mtd, var_eom: data.var_vs_py_eom, pct_mtd: data.pct_vs_py_mtd, pct_eom: data.pct_vs_py_eom },
+    { label: "'26 Budget", mtd: data.vs_budget_mtd, eom: data.vs_budget_eom, var_mtd: data.var_vs_budget_mtd, var_eom: data.var_vs_budget_eom, pct_mtd: data.pct_vs_budget_mtd, pct_eom: data.pct_vs_budget_eom },
+  ]
+  return (
+    <div>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:'16px', marginBottom:'24px'}}>
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiLabel}>Apr MTD Revenue</div>
+          <div className={styles.kpiValue}>{fmtAmt(data.apr_mtd)}</div>
+        </div>
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiLabel}>Apr EOM Forecast</div>
+          <div className={styles.kpiValue}>{fmtAmt(data.apr_eom_fcst)}</div>
+        </div>
+      </div>
+      <div className={styles.tblWrap}><div className={styles.tblScroll}><table className={styles.table}>
+        <thead><tr>
+          <th className={styles.th}>vs.</th>
+          <th className={`${styles.th} ${styles.right}`}>Apr MTD Actual</th>
+          <th className={`${styles.th} ${styles.right}`}>Apr Month Fcst</th>
+          <th className={`${styles.th} ${styles.right}`}>$ Var MTD</th>
+          <th className={`${styles.th} ${styles.right}`}>$ Var Fcst</th>
+          <th className={`${styles.th} ${styles.right}`}>Multiple MTD</th>
+          <th className={`${styles.th} ${styles.right}`}>Multiple Fcst</th>
+        </tr></thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className={styles.row}>
+              <td className={`${styles.td}`} style={{fontWeight:600}}>{r.label}</td>
+              <td className={`${styles.td} ${styles.right}`}>{fmtAmt(r.mtd)}</td>
+              <td className={`${styles.td} ${styles.right}`}>{fmtAmt(r.eom)}</td>
+              <td className={`${styles.td} ${styles.right}`} style={{color: (r.var_mtd ?? 0) >= 0 ? 'var(--green)' : 'var(--red)'}}>{fmtDollar(r.var_mtd)}</td>
+              <td className={`${styles.td} ${styles.right}`} style={{color: (r.var_eom ?? 0) >= 0 ? 'var(--green)' : 'var(--red)'}}>{fmtDollar(r.var_eom)}</td>
+              <td className={`${styles.td} ${styles.right}`}>{fmtX(r.pct_mtd)}</td>
+              <td className={`${styles.td} ${styles.right}`}>{fmtX(r.pct_eom)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table></div></div>
+    </div>
+  )
+}
+
 function KpiRow({ kpis }: { kpis: DashboardData['kpis'] }) {
   const cards = [
-    { label: 'Apr MTD Revenue', value: fmtMoney(kpis.apr_mtd_revenue, 'M'), delta: kpis.apr_mtd_revenue_vs_py, sub: 'vs prior year' },
-    { label: 'Apr EOM Forecast', value: fmtMoney(kpis.apr_month_forecast, 'M'), delta: kpis.apr_month_forecast_vs_budget, sub: 'vs budget' },
+    { label: 'Apr MTD Revenue', value: fmtM(kpis.apr_mtd_revenue), delta: kpis.apr_mtd_revenue_vs_py, sub: 'vs prior year' },
+    { label: 'Apr EOM Forecast', value: fmtM(kpis.apr_month_forecast), delta: kpis.apr_month_forecast_vs_budget, sub: 'vs budget' },
     { label: 'Apr MTD Procedures', value: fmtNum(kpis.apr_mtd_procedures), delta: kpis.apr_mtd_procedures_vs_py, sub: 'vs prior year' },
     { label: 'Apr Proc. Forecast', value: fmtNum(kpis.apr_proc_forecast), delta: kpis.apr_proc_forecast_vs_budget, sub: 'vs budget' },
     { label: "YTD Procedures '26", value: fmtNum(kpis.ytd_procedures), delta: kpis.ytd_procedures_vs_py, sub: 'vs prior year' },
-    { label: "YTD Revenue '26", value: fmtMoney(kpis.ytd_revenue, 'M'), delta: kpis.ytd_revenue_vs_py, sub: 'vs prior year' },
+    { label: "YTD Revenue '26", value: fmtM(kpis.ytd_revenue), delta: kpis.ytd_revenue_vs_py, sub: 'vs prior year' },
   ]
   return (
     <div className={styles.kpiRow}>
@@ -231,7 +331,8 @@ function KpiRow({ kpis }: { kpis: DashboardData['kpis'] }) {
     </div>
   )
 }
-type TabId = 'all' | 'top50' | 'cohort'
+
+type TabId = 'all' | 'top50' | 'cohort' | 'mtd'
 export default function DashboardClient({ initialData }: { initialData: DashboardData }) {
   const [data, setData] = useState<DashboardData>(initialData)
   const [tab, setTab] = useState<TabId>('all')
@@ -248,11 +349,10 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
     return () => clearInterval(id)
   }, [refresh])
 
-  const allClients: Top50Client[] = (data as any).top50 || []
-  const top50Only: Top50Client[] = (data as any).top50_only || allClients.slice(0, 51)
-  const cohort2026: CohortClient[] = ((data as any).cohort || []).filter(
-    (r: any) => String(r.vintage) === '2026'
-  )
+  const allClients = (data as any).top50 || []
+  const top50Only = (data as any).top50_only || allClients.slice(0, 51)
+  const cohort2026 = ((data as any).cohort || []).filter((r: any) => String(r.vintage) === '2026')
+  const mtdData = (data as any).mtd_performance
 
   return (
     <div className={styles.page}>
@@ -283,8 +383,8 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
           <button className={styles.refreshBtn} onClick={refresh} disabled={refreshing}>
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
-          <span className={styles.sourceTag} style={{color: 'rgba(245,237,217,0.5)'}}>
-            Updated {new Date(data.refreshedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+          <span className={styles.sourceTag} style={{color:'rgba(245,237,217,0.5)'}}>
+            Updated {new Date(data.refreshedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
           </span>
         </div>
       </header>
@@ -292,9 +392,10 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
         <KpiRow kpis={data.kpis} />
         <div className={styles.tabs}>
           {([
-            ['all', 'All Clients'],
-            ['top50', 'Top 50'],
+            ['all',    'All Clients'],
+            ['top50',  'Top 50'],
             ['cohort', '2026 Cohort'],
+            ['mtd',    'MTD Performance'],
           ] as [TabId, string][]).map(([t, label]) => (
             <button key={t} className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`} onClick={() => setTab(t)}>
               {label}
@@ -304,6 +405,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
         {tab === 'all'    && <ClientTable rows={allClients} />}
         {tab === 'top50'  && <ClientTable rows={top50Only} />}
         {tab === 'cohort' && <CohortTable rows={cohort2026} />}
+        {tab === 'mtd'    && <MtdPerformance data={mtdData} />}
       </main>
     </div>
   )

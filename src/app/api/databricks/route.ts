@@ -46,70 +46,132 @@ export async function GET() {
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
     const monthStr = String(month).padStart(2, '0');
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
     const currentBizDay = businessDayOfMonth(now);
     const totalBizDays = businessDaysInMonth(year, month);
     const curveAtToday = SCHEDULING_CURVE[currentBizDay] || 0.85;
     const scaleUpFactor = curveAtToday > 0 ? 1 / curveAtToday : 1;
 
-    const [actual, budget, inputs, surgeries, priorYrProcs] = await Promise.all([
+    const [actual, budget, inputs, curSurgeries, ytdSurgeries, priorSurgeries, funnel] = await Promise.all([
+
+      // Actual revenues (all historical)
       queryDatabricks(
         'SELECT client_name, fee_structure, carve_out, ees, go_live_date, revenue_month, actual_revenue FROM sandboxwarehouse.growth_analytics.actual_revenues',
         'actual-rev'
       ),
+
+      // Budget revenues
       queryDatabricks(
         'SELECT client_name, revenue_month, surgery_care_revenue, cohort, fee_structure, carve_out, ees FROM sandboxwarehouse.growth_analytics.budgeted_revenues',
         'budget-rev'
       ),
+
+      // Client inputs
       queryDatabricks(
         'SELECT care_hub_name, fee_structure, carve_out, ees, cohort, modeling_go_live, contract_start_date, variable_pct, variable_pct_2 FROM sandboxwarehouse.growth_analytics.client_inputs WHERE care_hub_name IS NOT NULL',
         'client-inputs'
       ),
+
+      // Current month surgeries with revenue
       queryDatabricks(
-        `SELECT s.client_name, s.client_code, ci.care_hub_name, ci.fee_structure, ci.carve_out, ci.ees, ci.go_live_year, s.Requested_Procedure_Item_Category AS category,
+        `SELECT s.client_name, s.client_code, ci.care_hub_name, ci.fee_structure, ci.carve_out, ci.ees, s.Requested_Procedure_Item_Category AS category,
           CASE
-            WHEN LOWER(ci.fee_structure) LIKE '%savings%' THEN cpp_avg.avg_savings * CAST(ci.variable_pct_2 AS DOUBLE)
-            WHEN LOWER(ci.fee_structure) LIKE '%variable%' THEN cpp_avg.avg_lantern_rate * CAST(ci.variable_pct AS DOUBLE)
-            WHEN LOWER(ci.fee_structure) LIKE '%hybrid%' THEN cpp_avg.avg_lantern_rate * CAST(ci.variable_pct AS DOUBLE)
+            WHEN LOWER(ci.fee_structure) LIKE '%savings%' THEN cpp.avg_savings * CAST(ci.variable_pct_2 AS DOUBLE)
+            WHEN LOWER(ci.fee_structure) LIKE '%variable%' THEN cpp.avg_lantern_rate * CAST(ci.variable_pct AS DOUBLE)
+            WHEN LOWER(ci.fee_structure) LIKE '%hybrid%' THEN cpp.avg_lantern_rate * CAST(ci.variable_pct AS DOUBLE)
             ELSE 0
           END AS procedure_revenue
         FROM datawarehouse.core.member_surgeries s
         LEFT JOIN sandboxwarehouse.growth_analytics.client_inputs ci ON UPPER(s.client_code) = UPPER(ci.care_hub_name)
         LEFT JOIN (
-          SELECT \`Carehub Category\` AS category,
-            AVG(CAST(REPLACE(REPLACE(\`Case Rates Lantern\`, '$', ''), ',', '') AS DOUBLE)) AS avg_lantern_rate,
-            AVG(CAST(REPLACE(REPLACE(\`Savings $\`, '$', ''), ',', '') AS DOUBLE)) AS avg_savings
+          SELECT \`Carehub Category\` AS cat,
+            AVG(CAST(REPLACE(REPLACE(\`Case Rates Lantern\`,'$',''),',','') AS DOUBLE)) AS avg_lantern_rate,
+            AVG(CAST(REPLACE(REPLACE(\`Savings $\`,'$',''),',','') AS DOUBLE)) AS avg_savings
           FROM sandboxwarehouse.growth_analytics.combined_procedure_pricing
           WHERE \`Carehub Category\` IS NOT NULL AND \`Case Rates Lantern\` IS NOT NULL AND \`Case Rates Lantern\` <> ''
           GROUP BY \`Carehub Category\`
-        ) cpp_avg ON UPPER(s.Requested_Procedure_Item_Category) = UPPER(cpp_avg.category)
+        ) cpp ON UPPER(s.Requested_Procedure_Item_Category) = UPPER(cpp.cat)
         WHERE YEAR(s.date_of_service) = ${year} AND MONTH(s.date_of_service) = ${month}
           AND s.requested_procedure_item_category <> 'INFUSION'`,
-        'cur-month-surgeries'
+        'cur-surgeries'
       ),
+
+      // YTD surgeries by client and month (Jan through current month)
       queryDatabricks(
-        `SELECT client_name, COUNT(DISTINCT service_id) as proc_count
+        `SELECT client_name, MONTH(date_of_service) AS m, COUNT(DISTINCT service_id) AS proc_count
         FROM datawarehouse.core.member_surgeries
-        WHERE YEAR(date_of_service) = ${year - 1}
-          AND MONTH(date_of_service) <= ${month}
+        WHERE YEAR(date_of_service) = ${year} AND MONTH(date_of_service) < ${month}
           AND requested_procedure_item_category <> 'INFUSION'
-        GROUP BY client_name`,
-        'prior-yr-procs'
+        GROUP BY client_name, MONTH(date_of_service)`,
+        'ytd-surgeries'
+      ),
+
+      // Prior year YTD surgeries by client and month
+      queryDatabricks(
+        `SELECT client_name, MONTH(date_of_service) AS m, COUNT(DISTINCT service_id) AS proc_count
+        FROM datawarehouse.core.member_surgeries
+        WHERE YEAR(date_of_service) = ${year - 1} AND MONTH(date_of_service) <= ${month}
+          AND requested_procedure_item_category <> 'INFUSION'
+        GROUP BY client_name, MONTH(date_of_service)`,
+        'prior-surgeries'
+      ),
+
+      // Full Funnel data for cohort tab
+      queryDatabricks(
+        `WITH all_cases AS (
+          SELECT * FROM datawarehouse.core.member_case_detail
+          WHERE product_name <> 'Hinge Health'
+            AND (case_status NOT IN ('Closed','Void') OR case_closed_date >= date_trunc('YEAR', add_months(current_date(), -12)))
+        )
+        SELECT
+          client_code,
+          COUNT(DISTINCT CASE WHEN case_closed_reason_category NOT IN ('Provider Inquiry','General Benefit Inquiry','Lost Case - First Call') OR case_closed_reason_category IS NULL THEN member_case_id END) AS ytd_first_calls,
+          COUNT(DISTINCT CASE WHEN case_closed_reason_category NOT IN ('Provider Inquiry','General Benefit Inquiry','Lost Case - First Call') OR case_closed_reason_category IS NULL THEN member_case_id END) AS ytd_new_cases,
+          COUNT(DISTINCT CASE WHEN (case_closed_date IS NULL OR case_closed_date > current_date()) AND case_status NOT IN ('Closed','Void') THEN member_case_id END) AS eop_active_cases,
+          COUNT(DISTINCT CASE WHEN first_consult_date IS NOT NULL OR first_surgery_date IS NOT NULL OR case_closed_reason_category IN ('Case Complete','Avoided Procedure') THEN member_case_id END) AS ytd_consults
+        FROM all_cases
+        WHERE YEAR(case_created_date) = ${year}
+        GROUP BY client_code`,
+        'funnel-data'
       ),
     ]);
 
-    // Prior year procedure lookup
-    const priorProcByName: Record<string, number> = {};
-    for (const r of priorYrProcs) {
-      priorProcByName[r.client_name] = parseInt(r.proc_count) || 0;
+    // Build funnel lookup by client_code
+    const funnelByCode: Record<string, any> = {};
+    for (const f of funnel) {
+      funnelByCode[f.client_code?.toUpperCase()] = f;
     }
 
-    // Aggregate surgeries by client_name
-    const surgByName: Record<string, { client_code: string; care_hub_name: string; fee_structure: string; carve_out: any; ees: any; go_live_year: any; scheduled: number; scheduled_rev: number }> = {};
-    for (const s of surgeries) {
+    // Build monthly proc maps
+    // ytdProcByClient[name][month] = count
+    const ytdProcByClient: Record<string, Record<number, number>> = {};
+    for (const r of ytdSurgeries) {
+      const n = r.client_name;
+      if (!ytdProcByClient[n]) ytdProcByClient[n] = {};
+      ytdProcByClient[n][parseInt(r.m)] = parseInt(r.proc_count) || 0;
+    }
+    const priorProcByClient: Record<string, Record<number, number>> = {};
+    const priorProcByName: Record<string, number> = {};
+    for (const r of priorSurgeries) {
+      const n = r.client_name;
+      if (!priorProcByClient[n]) priorProcByClient[n] = {};
+      priorProcByClient[n][parseInt(r.m)] = parseInt(r.proc_count) || 0;
+      priorProcByName[n] = (priorProcByName[n] || 0) + (parseInt(r.proc_count) || 0);
+    }
+
+    // YTD prior months proc totals per client
+    const ytdPriorMonthsProcs: Record<string, number> = {};
+    for (const [name, months] of Object.entries(ytdProcByClient)) {
+      ytdPriorMonthsProcs[name] = Object.values(months).reduce((a, b) => a + b, 0);
+    }
+
+    // Current month surgeries aggregation
+    const surgByName: Record<string, { client_code: string; care_hub_name: string; fee_structure: string; carve_out: any; ees: any; scheduled: number; scheduled_rev: number }> = {};
+    for (const s of curSurgeries) {
       const key = s.client_name;
       if (!surgByName[key]) {
-        surgByName[key] = { client_code: s.client_code, care_hub_name: s.care_hub_name || s.client_code, fee_structure: s.fee_structure || '—', carve_out: s.carve_out, ees: s.ees, go_live_year: s.go_live_year, scheduled: 0, scheduled_rev: 0 };
+        surgByName[key] = { client_code: s.client_code, care_hub_name: s.care_hub_name || s.client_code, fee_structure: s.fee_structure || '—', carve_out: s.carve_out, ees: s.ees, scheduled: 0, scheduled_rev: 0 };
       }
       surgByName[key].scheduled++;
       surgByName[key].scheduled_rev += parseFloat(s.procedure_revenue) || 0;
@@ -128,25 +190,30 @@ export async function GET() {
     const totalEomProcs = Math.round(totalScheduledProcs * scaleUpFactor);
     const totalPriorProcs = Object.values(priorProcByName).reduce((a, b) => a + b, 0);
 
-    // Aggregate actual revenues
-    const actByName: Record<string, { fee_structure: string; carveout: string; ees: any; vintage: number | null; prior_rev: number; py_rev: number }> = {};
+    // Actual revenues aggregation
+    const actByName: Record<string, { fee_structure: string; carveout: string; ees: any; vintage: number | null; prior_rev: number; py_rev: number; monthly_rev: Record<number, number>; py_monthly_rev: Record<number, number> }> = {};
     for (const r of actual) {
       const n = r.client_name;
       if (!actByName[n]) {
-        actByName[n] = { fee_structure: r.fee_structure || '—', carveout: carveoutLabel(r.carve_out), ees: parseFloat(r.ees) || null, vintage: r.go_live_date ? new Date(r.go_live_date).getFullYear() : null, prior_rev: 0, py_rev: 0 };
+        actByName[n] = { fee_structure: r.fee_structure || '—', carveout: carveoutLabel(r.carve_out), ees: parseFloat(r.ees) || null, vintage: r.go_live_date ? new Date(r.go_live_date).getFullYear() : null, prior_rev: 0, py_rev: 0, monthly_rev: {}, py_monthly_rev: {} };
       }
       const rev = parseFloat(r.actual_revenue) || 0;
       const ym = String(r.revenue_month || '').substring(0, 7);
       const ry = parseInt(ym.substring(0, 4));
       const rm = parseInt(ym.substring(5, 7));
-      if (ry === year && rm !== month) actByName[n].prior_rev += rev;
-      if (ry === year - 1) actByName[n].py_rev += rev;
+      if (ry === year && rm !== month) {
+        actByName[n].prior_rev += rev;
+        actByName[n].monthly_rev[rm] = (actByName[n].monthly_rev[rm] || 0) + rev;
+      }
+      if (ry === year - 1) {
+        actByName[n].py_rev += rev;
+        actByName[n].py_monthly_rev[rm] = (actByName[n].py_monthly_rev[rm] || 0) + rev;
+      }
     }
 
     // Budget aggregation
     const budByName: Record<string, number> = {};
-    let curBudRev = 0;
-    let ytdBudRev = 0;
+    let curBudRev = 0; let ytdBudRev = 0;
     for (const r of budget) {
       const rev = parseFloat(r.surgery_care_revenue) || 0;
       const ym = String(r.revenue_month || '').substring(0, 7);
@@ -159,9 +226,7 @@ export async function GET() {
       }
     }
 
-    // Prior year totals
-    let pyMonthRev = 0;
-    let pyYtdRev = 0;
+    let pyMonthRev = 0; let pyYtdRev = 0;
     for (const r of actual) {
       const rev = parseFloat(r.actual_revenue) || 0;
       const ym = String(r.revenue_month || '').substring(0, 7);
@@ -174,36 +239,79 @@ export async function GET() {
     const priorMonthsTotal = Object.values(actByName).reduce((a, c) => a + c.prior_rev, 0);
     const ytdRevTotal = priorMonthsTotal + totalEomRev;
 
-    // Merge all clients
+    // Build all clients
     const allClientNames = new Set([...Object.keys(actByName), ...Object.keys(surgByName)]);
+
     const allClients = Array.from(allClientNames).map(name => {
-      const act  = actByName[name];
-      const surg = surgByName[name];
+      const act   = actByName[name];
+      const surg  = surgByName[name];
       const aprMtd  = surg?.scheduled_rev || 0;
       const aprEom  = surgEomRev[name] || 0;
       const priorRev = act?.prior_rev || 0;
       const ytdEst  = priorRev + aprEom;
       const pyRev   = act?.py_rev || 0;
+      const ytdActProcs = ytdPriorMonthsProcs[name] || 0;
+      const ytdEomProcs26 = ytdActProcs + (surgEomProcs[name] || 0);
+      const ytdProcs25 = priorProcByName[name] || null;
+
+      // Monthly proc arrays [jan, feb, mar, apr_est]
+      const procs26 = [1,2,3].map(m => ytdProcByClient[name]?.[m] ?? null);
+      const aprEomProcEst = surgEomProcs[name] || 0;
+      const procs25 = [1,2,3,4].map(m => priorProcByClient[name]?.[m] ?? null);
+
+      // Monthly revenue arrays
+      const rev26 = [1,2,3].map(m => act?.monthly_rev[m] ? Math.round(act.monthly_rev[m] / 1000) : null);
+      const rev25 = [1,2,3,4].map(m => act?.py_monthly_rev[m] ? Math.round(act.py_monthly_rev[m] / 1000) : null);
+      const aprRevEst = Math.round(aprEom / 1000);
+
+      const avgRevPerProc = ytdEomProcs26 > 0 ? Math.round(ytdEst / ytdEomProcs26) : null;
+
       return {
         client_name: name,
-        vintage: act?.vintage ?? (surg?.go_live_year ? parseInt(surg.go_live_year) : null),
+        vintage: act?.vintage ?? null,
         fee_structure: act?.fee_structure ?? surg?.fee_structure ?? '—',
         carveout: act?.carveout ?? carveoutLabel(surg?.carve_out),
         ees: act?.ees ?? (surg?.ees ? parseInt(surg.ees) : null),
-        ytd_procedures_26: surgEomProcs[name] || null,
-        ytd_procedures_25: priorProcByName[name] || null,
-        apr_revenue_26: Math.round(aprMtd / 1000),
-        apr_eom_est: Math.round(aprEom / 1000),
-        ytd_revenue_26: Math.round(ytdEst / 1000),
-        ytd_revenue_25: pyRev ? Math.round(pyRev / 1000) : null,
+        // Procedures
+        procs26_jan: procs26[0], procs26_feb: procs26[1], procs26_mar: procs26[2],
+        procs26_apr_mtd: surg?.scheduled || null,
+        procs26_apr_est: aprEomProcEst || null,
+        procs26_ytd: ytdEomProcs26 || null,
+        procs25_jan: procs25[0], procs25_feb: procs25[1], procs25_mar: procs25[2], procs25_apr: procs25[3],
+        procs25_ytd: ytdProcs25,
+        // Revenue
+        rev26_jan: rev26[0], rev26_feb: rev26[1], rev26_mar: rev26[2],
+        rev26_apr_mtd: Math.round(aprMtd / 1000),
+        rev26_apr_est: aprRevEst,
+        rev26_ytd: Math.round(ytdEst / 1000),
+        rev25_jan: rev25[0], rev25_feb: rev25[1], rev25_mar: rev25[2], rev25_apr: rev25[3],
+        rev25_ytd: pyRev ? Math.round(pyRev / 1000) : null,
+        // Diffs
+        avg_rev_per_proc: avgRevPerProc,
         ytd_vs_py_pct: pyRev ? parseFloat(((ytdEst - pyRev) / pyRev * 100).toFixed(1)) : null,
         ytd_vs_budget_pct: budByName[name] ? parseFloat(((ytdEst - budByName[name]) / budByName[name] * 100).toFixed(1)) : null,
+        // Legacy fields for compatibility
+        ytd_procedures_26: ytdEomProcs26 || null,
+        ytd_procedures_25: ytdProcs25,
+        apr_revenue_26: Math.round(aprMtd / 1000),
+        apr_eom_est: aprRevEst,
+        ytd_revenue_26: Math.round(ytdEst / 1000),
+        ytd_revenue_25: pyRev ? Math.round(pyRev / 1000) : null,
       };
     }).sort((a: any, b: any) => (b.ytd_revenue_26 || 0) - (a.ytd_revenue_26 || 0));
 
-    const totalRow = {
+    // Total row
+    const totalYtdActProcs = Object.values(ytdPriorMonthsProcs).reduce((a, b) => a + b, 0);
+    const totalRow: any = {
       client_name: 'Total Surgery Care Revenue', vintage: null, fee_structure: '—', carveout: '—', ees: null,
-      ytd_procedures_26: totalEomProcs,
+      procs26_ytd: totalYtdActProcs + totalEomProcs,
+      procs25_ytd: totalPriorProcs || null,
+      procs26_apr_mtd: totalScheduledProcs, procs26_apr_est: totalEomProcs,
+      rev26_apr_mtd: Math.round(totalScheduledRev / 1000),
+      rev26_apr_est: Math.round(totalEomRev / 1000),
+      rev26_ytd: Math.round(ytdRevTotal / 1000),
+      rev25_ytd: pyYtdRev ? Math.round(pyYtdRev / 1000) : null,
+      ytd_procedures_26: totalYtdActProcs + totalEomProcs,
       ytd_procedures_25: totalPriorProcs || null,
       apr_revenue_26: Math.round(totalScheduledRev / 1000),
       apr_eom_est: Math.round(totalEomRev / 1000),
@@ -217,17 +325,20 @@ export async function GET() {
     const top50 = [...allClients].slice(0, 50).concat([totalRow]);
     const allWithTotal = [...allClients, totalRow];
 
-    // Cohort from client_inputs
+    // Cohort
     const cohort = inputs.map((c: any) => {
       const name = c.care_hub_name;
-      const surg = surgByName[name];
-      const act = actByName[name] || Object.entries(actByName).find(([k]) =>
+      const surg  = surgByName[name];
+      const act   = actByName[name] || Object.entries(actByName).find(([k]) =>
         k.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(k.toLowerCase())
       )?.[1];
-      const aprMtd = surg?.scheduled_rev || 0;
-      const aprEom = surgEomRev[name] || 0;
+      const funnelData = funnelByCode[name?.toUpperCase()] || funnelByCode[surg?.client_code?.toUpperCase()];
+      const aprMtd  = surg?.scheduled_rev || 0;
+      const aprEom  = surgEomRev[name] || 0;
       const priorRev = act?.prior_rev || 0;
-      const ytdEst = priorRev + aprEom;
+      const ytdEst  = priorRev + aprEom;
+      const ytdActProcs = ytdPriorMonthsProcs[name] || 0;
+      const ytdEomProcs26 = ytdActProcs + (surgEomProcs[name] || 0);
       return {
         client_name: name,
         go_live_date: c.modeling_go_live || c.contract_start_date,
@@ -235,9 +346,11 @@ export async function GET() {
         fee_structure: c.fee_structure || '—',
         carveout: carveoutLabel(c.carve_out),
         vintage: c.cohort,
-        ytd_call_rate: null,
-        eop_active_cases: null,
-        ytd_procedures: surgEomProcs[name] || null,
+        ytd_first_calls: funnelData ? parseInt(funnelData.ytd_first_calls) || null : null,
+        ytd_new_cases: funnelData ? parseInt(funnelData.ytd_new_cases) || null : null,
+        eop_active_cases: funnelData ? parseInt(funnelData.eop_active_cases) || null : null,
+        ytd_consults: funnelData ? parseInt(funnelData.ytd_consults) || null : null,
+        ytd_procedures: ytdEomProcs26 || null,
         apr_revenue: Math.round(aprMtd / 1000),
         apr_eom_est: Math.round(aprEom / 1000),
         ytd_revenue: Math.round(ytdEst / 1000),
@@ -245,6 +358,28 @@ export async function GET() {
         ytd_vs_model_pct: null,
       };
     }).sort((a: any, b: any) => (b.ytd_revenue || 0) - (a.ytd_revenue || 0));
+
+    // MTD Performance data
+    const varRevBudget = Math.round(totalScheduledRev - curBudRev);
+    const varRevPY = Math.round(totalScheduledRev - pyMonthRev);
+    const varEomBudget = Math.round(totalEomRev - curBudRev);
+    const varEomPY = Math.round(totalEomRev - pyMonthRev);
+    const mtdPerformance = {
+      apr_mtd: Math.round(totalScheduledRev),
+      apr_eom_fcst: Math.round(totalEomRev),
+      vs_py_mtd: pyMonthRev || null,
+      vs_py_eom: Math.round(totalEomRev) || null,
+      var_vs_py_mtd: pyMonthRev ? varRevPY : null,
+      var_vs_py_eom: pyMonthRev ? varEomPY : null,
+      pct_vs_py_mtd: pyMonthRev ? parseFloat((totalScheduledRev / pyMonthRev).toFixed(3)) : null,
+      pct_vs_py_eom: pyMonthRev ? parseFloat((totalEomRev / pyMonthRev).toFixed(3)) : null,
+      vs_budget_mtd: curBudRev || null,
+      vs_budget_eom: curBudRev || null,
+      var_vs_budget_mtd: curBudRev ? varRevBudget : null,
+      var_vs_budget_eom: curBudRev ? varEomBudget : null,
+      pct_vs_budget_mtd: curBudRev ? parseFloat((totalScheduledRev / curBudRev).toFixed(3)) : null,
+      pct_vs_budget_eom: curBudRev ? parseFloat((totalEomRev / curBudRev).toFixed(3)) : null,
+    };
 
     return NextResponse.json({
       source: 'databricks',
@@ -255,18 +390,19 @@ export async function GET() {
         apr_month_forecast: Math.round(totalEomRev),
         apr_mtd_procedures: totalScheduledProcs,
         apr_proc_forecast: totalEomProcs,
-        ytd_procedures: totalEomProcs,
+        ytd_procedures: totalYtdActProcs + totalEomProcs,
         ytd_revenue: Math.round(ytdRevTotal),
         apr_mtd_revenue_vs_py: pyMonthRev ? parseFloat(((totalScheduledRev - pyMonthRev) / pyMonthRev * 100).toFixed(1)) : null,
         apr_month_forecast_vs_budget: curBudRev ? parseFloat(((totalEomRev - curBudRev) / curBudRev * 100).toFixed(1)) : null,
         apr_mtd_procedures_vs_py: null,
         apr_proc_forecast_vs_budget: null,
-        ytd_procedures_vs_py: totalPriorProcs ? parseFloat(((totalEomProcs - totalPriorProcs) / totalPriorProcs * 100).toFixed(1)) : null,
+        ytd_procedures_vs_py: totalPriorProcs ? parseFloat(((totalYtdActProcs + totalEomProcs - totalPriorProcs) / totalPriorProcs * 100).toFixed(1)) : null,
         ytd_revenue_vs_py: pyYtdRev ? parseFloat(((ytdRevTotal - pyYtdRev) / pyYtdRev * 100).toFixed(1)) : null,
       },
       top50: allWithTotal,
       top50_only: top50,
       cohort,
+      mtd_performance: mtdPerformance,
     });
 
   } catch (error: any) {
