@@ -240,6 +240,22 @@
 .th:last-child { border-right: none; }
 .thActive { background: var(--teal-mid); }
 
+/* Est column header — dashed border, normal readable style */
+.thEst {
+  background: var(--teal-mid);
+  color: var(--cream);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  border-left: 2px dashed rgba(245,237,217,0.5) !important;
+  border-right: 2px dashed rgba(245,237,217,0.5) !important;
+}
+
 .right { text-align: right; }
 
 .sortIcon { opacity: 0.7; margin-left: 4px; }
@@ -281,6 +297,15 @@
 .neg { color: var(--red); background: var(--red-bg); }
 .dash { color: var(--text-3); }
 
+/* ── Est cell (data rows) ───────────────────────────────────────── */
+.estCell {
+  background: rgba(26,107,85,0.10) !important;
+  border-left: 2px dashed rgba(26,107,85,0.3) !important;
+  border-right: 2px dashed rgba(26,107,85,0.3) !important;
+  font-weight: 600;
+  color: var(--teal) !important;
+}
+
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .kpiRow { grid-template-columns: repeat(3, 1fr); }
@@ -293,9 +318,3 @@
 .kpiDelta { font-size: 11px; font-weight: 500; margin-top: 4px; }
 .kpiDelta.pos { color: var(--green); }
 .kpiDelta.neg { color: var(--red); }
-
-
-.kpiDelta { font-size: 11px; font-weight: 500; margin-top: 4px; }
-.kpiDelta.pos { color: var(--green); }
-.kpiDelta.neg { color: var(--red); }
-.estCell { background: rgba(26,107,85,0.06) !important; font-style: italic; }

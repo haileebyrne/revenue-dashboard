@@ -137,6 +137,30 @@ export async function GET() {
       ),
     ]);
 
+    // Robust revenue_month parser — handles "2026-01", "2026-01-01", "2026-1-1", timestamps, etc.
+    function parseYearMonth(raw: any): { ry: number; rm: number } | null {
+      if (!raw) return null;
+      const s = String(raw).trim();
+      // Try "YYYY-MM..." format first
+      const m = s.match(/^(\d{4})[^0-9](\d{1,2})/);
+      if (m) return { ry: parseInt(m[1]), rm: parseInt(m[2]) };
+      // Try Date parse as fallback
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) return { ry: d.getFullYear(), rm: d.getMonth() + 1 };
+      return null;
+    }
+
+    // Robust revenue parser — handles "1,194", "(26,500)", "$1,234", null, etc.
+    function parseRevenue(raw: any): number {
+      if (!raw) return 0;
+      const s = String(raw).trim();
+      const negative = s.startsWith('(') && s.endsWith(')');
+      const cleaned = s.replace(/[$,()]/g, '');
+      const val = parseFloat(cleaned);
+      if (isNaN(val)) return 0;
+      return negative ? -val : val;
+    }
+
     // Build funnel lookup by client_code
     const funnelByCode: Record<string, any> = {};
     for (const f of funnel) {
@@ -197,10 +221,13 @@ export async function GET() {
       if (!actByName[n]) {
         actByName[n] = { fee_structure: r.fee_structure || '—', carveout: carveoutLabel(r.carve_out), ees: parseFloat(r.ees) || null, vintage: r.go_live_date ? new Date(r.go_live_date).getFullYear() : null, prior_rev: 0, py_rev: 0, monthly_rev: {}, py_monthly_rev: {} };
       }
-      const rev = parseFloat(r.actual_revenue) || 0;
-      const ym = String(r.revenue_month || '').substring(0, 7);
-      const ry = parseInt(ym.substring(0, 4));
-      const rm = parseInt(ym.substring(5, 7));
+      const rev = parseRevenue(r.actual_revenue);
+      const parsed = parseYearMonth(r.revenue_month);
+      if (n === 'North Carolina State Health Plan') {
+        console.log(`[NC DEBUG] raw:`, r.revenue_month, '| typeof:', typeof r.revenue_month, '| parsed:', parsed, '| rev:', rev);
+      }
+      if (!parsed) continue;
+      const { ry, rm } = parsed;
       if (ry === year && rm !== month) {
         actByName[n].prior_rev += rev;
         actByName[n].monthly_rev[rm] = (actByName[n].monthly_rev[rm] || 0) + rev;
@@ -216,9 +243,9 @@ export async function GET() {
     let curBudRev = 0; let ytdBudRev = 0;
     for (const r of budget) {
       const rev = parseFloat(r.surgery_care_revenue) || 0;
-      const ym = String(r.revenue_month || '').substring(0, 7);
-      const ry = parseInt(ym.substring(0, 4));
-      const rm = parseInt(ym.substring(5, 7));
+      const parsed = parseYearMonth(r.revenue_month);
+      if (!parsed) continue;
+      const { ry, rm } = parsed;
       if (ry === year) {
         budByName[r.client_name] = (budByName[r.client_name] || 0) + rev;
         ytdBudRev += rev;
@@ -228,10 +255,10 @@ export async function GET() {
 
     let pyMonthRev = 0; let pyYtdRev = 0;
     for (const r of actual) {
-      const rev = parseFloat(r.actual_revenue) || 0;
-      const ym = String(r.revenue_month || '').substring(0, 7);
-      const ry = parseInt(ym.substring(0, 4));
-      const rm = parseInt(ym.substring(5, 7));
+      const rev = parseRevenue(r.actual_revenue);
+      const parsed = parseYearMonth(r.revenue_month);
+      if (!parsed) continue;
+      const { ry, rm } = parsed;
       if (ry === year - 1 && rm === month) pyMonthRev += rev;
       if (ry === year - 1) pyYtdRev += rev;
     }
@@ -240,6 +267,7 @@ export async function GET() {
     const ytdRevTotal = priorMonthsTotal + totalEomRev;
 
     // Build all clients
+    let debugLogged = false;
     const allClientNames = new Set([...Object.keys(actByName), ...Object.keys(surgByName)]);
 
     const allClients = Array.from(allClientNames).map(name => {
@@ -260,6 +288,12 @@ export async function GET() {
       const procs25 = [1,2,3,4].map(m => priorProcByClient[name]?.[m] ?? null);
 
       // Monthly revenue arrays
+      // DEBUG: log first client's monthly_rev to diagnose
+      if (act?.monthly_rev && Object.keys(act.monthly_rev).length > 0 && !debugLogged) {
+        console.log(`[DEBUG] ${name} monthly_rev raw:`, act.monthly_rev);
+        console.log(`[DEBUG] ${name} py_monthly_rev raw:`, act.py_monthly_rev);
+        debugLogged = true;
+      }
       const rev26 = [1,2,3].map(m => act?.monthly_rev[m] ? Math.round(act.monthly_rev[m] / 1000) : null);
       const rev25 = [1,2,3,4].map(m => act?.py_monthly_rev[m] ? Math.round(act.py_monthly_rev[m] / 1000) : null);
       const aprRevEst = Math.round(aprEom / 1000);

@@ -19,10 +19,6 @@ function fmtPct(v: number | null | undefined) {
   if (v == null) return null
   return { value: v, label: `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`, pos: v >= 0 }
 }
-function fmtMultiple(v: number | null | undefined) {
-  if (v == null) return '—'
-  return `${v.toFixed(2)}x`
-}
 function uniqueVintages(rows: any[]) {
   return [...new Set(rows.filter(r => r.vintage).map(r => String(r.vintage)))].sort()
 }
@@ -45,6 +41,14 @@ function Th({ label, col, sort, onSort, right }: { label: string; col: string; s
   const active = sort.col === col
   return (
     <th className={`${styles.th} ${right ? styles.right : ''} ${active ? styles.thActive : ''}`} onClick={() => onSort(col)}>
+      {label}<span className={styles.sortIcon}>{active ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}</span>
+    </th>
+  )
+}
+function ThEst({ label, col, sort, onSort }: { label: string; col: string; sort: SortState; onSort: (c: string) => void }) {
+  const active = sort.col === col
+  return (
+    <th className={`${styles.thEst} ${styles.right} ${active ? styles.thActive : ''}`} onClick={() => onSort(col)}>
       {label}<span className={styles.sortIcon}>{active ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}</span>
     </th>
   )
@@ -133,9 +137,6 @@ function ClientTable({ rows }: { rows: any[] }) {
     </tr>
   )
 
-  const TH = (label: string, col: string) => <Th label={label} col={col} sort={sort} onSort={onSort} right />
-  const THL = (label: string, col: string) => <Th label={label} col={col} sort={sort} onSort={onSort} />
-
   return (
     <>
       <Filters search={search} onSearch={setSearch} fee={fee} onFee={setFee} carve={carve} onCarve={setCarve} vintage={vintage} onVintage={setVintage} vintages={vintages} count={filtered.length} />
@@ -161,7 +162,7 @@ function ClientTable({ rows }: { rows: any[] }) {
             <th className={`${styles.th} ${styles.right}`}>Feb</th>
             <th className={`${styles.th} ${styles.right}`}>Mar</th>
             <th className={`${styles.th} ${styles.right}`}>Apr MTD</th>
-            <th className={`${styles.th} ${styles.right} ${styles.estCell}`}>Apr Est</th>
+            <th className={`${styles.thEst} ${styles.right}`}>Apr Est</th>
             <th className={`${styles.th} ${styles.right}`}>YTD</th>
             {/* Procs 25 */}
             <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Jan</th>
@@ -174,7 +175,7 @@ function ClientTable({ rows }: { rows: any[] }) {
             <th className={`${styles.th} ${styles.right}`}>Feb</th>
             <th className={`${styles.th} ${styles.right}`}>Mar</th>
             <th className={`${styles.th} ${styles.right}`}>Apr MTD</th>
-            <th className={`${styles.th} ${styles.right} ${styles.estCell}`}>Apr Est</th>
+            <th className={`${styles.thEst} ${styles.right}`}>Apr Est</th>
             <th className={`${styles.th} ${styles.right}`}>YTD</th>
             {/* Rev 25 */}
             <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Jan</th>
@@ -227,7 +228,7 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
           <Th label="YTD Consults" col="ytd_consults" sort={sort} onSort={onSort} right />
           <Th label="YTD Proc" col="ytd_procedures" sort={sort} onSort={onSort} right />
           <Th label="Apr MTD ($k)" col="apr_revenue" sort={sort} onSort={onSort} right />
-          <Th label="Apr EOM Est ($k)" col="apr_eom_est" sort={sort} onSort={onSort} right />
+          <ThEst label="Apr EOM Est ($k)" col="apr_eom_est" sort={sort} onSort={onSort} />
           <Th label="YTD Rev ($k)" col="ytd_revenue" sort={sort} onSort={onSort} right />
           <Th label="YTD vs budget" col="ytd_vs_budget_pct" sort={sort} onSort={onSort} right />
           <Th label="YTD vs model" col="ytd_vs_model_pct" sort={sort} onSort={onSort} right />
