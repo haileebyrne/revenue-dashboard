@@ -5,7 +5,7 @@ import styles from './Dashboard.module.css'
 
 function fmtM(v: number | null | undefined) {
   if (v == null) return '—'
-  return `$${(v / 1_000).toFixed(1)}M`
+  return `$${(v / 1_000_000).toFixed(1)}M`
 }
 function fmtMoney(v: number | null | undefined) {
   if (v == null) return '—'
