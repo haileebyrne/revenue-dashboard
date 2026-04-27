@@ -260,62 +260,36 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
 }
 
 function MtdPerformance({ data }: { data: any }) {
-  if (!data) return <div className={styles.tblWrap} style={{padding:'24px', color:'var(--text-3)'}}>No MTD data available</div>
-
+  if (!data) return <div className={styles.tblWrap} style={{padding:'24px'}}>No MTD data available</div>
   const rev = data.revenue || {}
   const proc = data.procedures || {}
-  const monthLabel = data.month_label || 'Apr-26'
+  const d = new Date()
+  const dayLabel = `${d.toLocaleString('en-US',{month:'short'})}-${d.getDate()}`
+  const mLabel = d.toLocaleString('en-US',{month:'short'})
 
-  const fmtM = (v: number | null) => v == null ? 'na' : `$${v.toFixed(1)}`
-  const fmtN = (v: number | null) => v == null ? '—' : Number(v).toLocaleString()
-  const fmtVar = (v: number | null) => {
+  const fmtM = (v: number | null | undefined) => v == null ? 'na' : `$${Number(v).toFixed(1)}`
+  const fmtN = (v: number | null | undefined) => v == null ? '—' : Number(Math.round(v as number)).toLocaleString()
+  const fmtVar = (v: number | null | undefined, isRev: boolean) => {
     if (v == null) return <span className={styles.dash}>—</span>
-    const pos = v >= 0
-    return <span className={pos ? styles.pos : styles.neg}>{pos ? '+' : ''}{v.toFixed(1)}</span>
+    const pos = (v as number) >= 0
+    const s = isRev ? `${pos?'+':''}${(v as number).toFixed(1)}` : `${pos?'+':''}${Number(Math.round(v as number)).toLocaleString()}`
+    return <span className={pos ? styles.pos : styles.neg}>{s}</span>
   }
-  const fmtVarN = (v: number | null) => {
-    if (v == null) return <span className={styles.dash}>—</span>
-    const pos = v >= 0
-    return <span className={pos ? styles.pos : styles.neg}>{pos ? '+' : ''}{Number(Math.round(v)).toLocaleString()}</span>
-  }
-  const fmtPct = (v: number | null) => {
+  const fmtPct = (v: number | null | undefined) => {
     if (v == null) return <span style={{color:'var(--text-3)'}}>na</span>
-    const pct = (v * 100).toFixed(0) + '%'
-    const pos = v >= 1
-    return <span className={pos ? styles.pos : styles.neg}>{pct}</span>
+    const pct = Math.round((v as number) * 100) + '%'
+    return <span className={(v as number) >= 1 ? styles.pos : styles.neg}>{pct}</span>
   }
 
-  const revRows = [
-    { label: 'PY',         mtd: rev.py_mtd,     eom: rev.py_eom,     var_mtd: rev.var_vs_py_mtd,     var_eom: rev.var_vs_py_eom,     pct_mtd: rev.pct_of_py_mtd,     pct_eom: rev.pct_of_py_eom },
-    { label: "'26 Budget", mtd: rev.budget_mtd,  eom: rev.budget_eom,  var_mtd: rev.var_vs_budget_mtd,  var_eom: rev.var_vs_budget_eom,  pct_mtd: rev.pct_of_budget_mtd,  pct_eom: rev.pct_of_budget_eom },
-    { label: "'26 OKR",    mtd: rev.okr_mtd,     eom: rev.okr_eom,     var_mtd: rev.var_vs_okr_mtd,     var_eom: rev.var_vs_okr_eom,     pct_mtd: rev.pct_of_okr_mtd,     pct_eom: rev.pct_of_okr_eom },
-  ]
-  const procRows = [
-    { label: 'PY',         mtd: proc.py_mtd,     eom: proc.py_eom,     var_mtd: proc.var_vs_py_mtd,     var_eom: proc.var_vs_py_eom,     pct_mtd: proc.pct_of_py_mtd,     pct_eom: proc.pct_of_py_eom },
-    { label: "'26 Budget", mtd: proc.budget_mtd,  eom: proc.budget_eom,  var_mtd: proc.var_vs_budget_mtd,  var_eom: proc.var_vs_budget_eom,  pct_mtd: proc.pct_of_budget_mtd,  pct_eom: proc.pct_of_budget_eom },
-    { label: "'26 OKR",    mtd: proc.okr_mtd,     eom: proc.okr_eom,     var_mtd: null,                    var_eom: null,                    pct_mtd: null,                    pct_eom: null },
-  ]
-
-  const mtdLabel = `${monthLabel.split('-')[0]}-${new Date().getDate()} MTD`
-  const eomLabel = `${monthLabel.split('-')[0]}. Month Fcst.`
-
-  const SectionTable = ({ title, rows, actual_mtd, actual_eom, isRev }: any) => (
-    <div style={{marginBottom: 32}}>
-      <div className={styles.tblWrap}><div className={styles.tblScroll}><table className={styles.table}>
+  const Section = ({title, rows, actualMtd, actualEom, isRev}: any) => (
+    <div style={{marginBottom:28}}>
+      <div className={styles.tblWrap}><div className={styles.tblScroll}>
+      <table className={styles.table}>
         <thead>
           <tr>
-            <th className={styles.th} colSpan={5} style={{textAlign:'left', fontSize:12}}>
-              {title}
-            </th>
-            <th className={styles.th} colSpan={2} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Act. {isRev ? '$ ' : '# '}Variance</th>
-            <th className={styles.th} colSpan={2} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Actual as % of...</th>
-          </tr>
-          <tr>
-            <th className={styles.th}>Category</th>
-            <th className={`${styles.th} ${styles.right}`}>{mtdLabel}</th>
-            <th className={`${styles.th} ${styles.right}`}>{eomLabel}</th>
-            <th className={`${styles.th} ${styles.right}`} style={{background:'rgba(26,107,85,0.3)'}}>{mtdLabel} Actual</th>
-            <th className={`${styles.th} ${styles.right}`} style={{background:'rgba(26,107,85,0.3)'}}>{eomLabel} Actual</th>
+            <th className={styles.th} style={{textAlign:'left', width:140}}>Total Surgery Care {isRev ? 'Revenue ($mm)' : 'Procedure Count'}</th>
+            <th className={`${styles.th} ${styles.right}`}>{dayLabel} MTD</th>
+            <th className={`${styles.th} ${styles.right}`}>{mLabel}. Month Fcst.</th>
             <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>MTD Var</th>
             <th className={`${styles.th} ${styles.right}`}>Fcst Var</th>
             <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>MTD %</th>
@@ -328,46 +302,42 @@ function MtdPerformance({ data }: { data: any }) {
               <td className={styles.td} style={{fontWeight:600}}>{r.label}</td>
               <td className={`${styles.td} ${styles.right}`}>{isRev ? fmtM(r.mtd) : fmtN(r.mtd)}</td>
               <td className={`${styles.td} ${styles.right}`}>{isRev ? fmtM(r.eom) : fmtN(r.eom)}</td>
-              <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{isRev ? fmtM(actual_mtd) : fmtN(actual_mtd)}</td>
-              <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{isRev ? fmtM(actual_eom) : fmtN(actual_eom)}</td>
-              <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>{isRev ? fmtVar(r.var_mtd) : fmtVarN(r.var_mtd)}</td>
-              <td className={`${styles.td} ${styles.right}`}>{isRev ? fmtVar(r.var_eom) : fmtVarN(r.var_eom)}</td>
+              <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>{fmtVar(r.var_mtd, isRev)}</td>
+              <td className={`${styles.td} ${styles.right}`}>{fmtVar(r.var_eom, isRev)}</td>
               <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>{fmtPct(r.pct_mtd)}</td>
               <td className={`${styles.td} ${styles.right}`}>{fmtPct(r.pct_eom)}</td>
             </tr>
           ))}
           <tr className={styles.totalRow}>
-            <td className={styles.td}>{new Date().toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'2-digit'})} Actual / Fcst.</td>
-            <td className={`${styles.td} ${styles.right}`}>{isRev ? fmtM(actual_mtd) : fmtN(actual_mtd)}</td>
-            <td className={`${styles.td} ${styles.right}`}>{isRev ? fmtM(actual_eom) : fmtN(actual_eom)}</td>
-            <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>—</td>
-            <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>—</td>
+            <td className={styles.td}>{dayLabel}/26 Actual / Fcst.</td>
+            <td className={`${styles.td} ${styles.right}`}>{isRev ? fmtM(actualMtd) : fmtN(actualMtd)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{isRev ? fmtM(actualEom) : fmtN(actualEom)}</td>
             <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>—</td>
             <td className={`${styles.td} ${styles.right}`}>—</td>
             <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>na</td>
             <td className={`${styles.td} ${styles.right}`}>na</td>
           </tr>
         </tbody>
-      </table></div></div>
+      </table>
+      </div></div>
     </div>
   )
 
+  const revRows = [
+    { label: 'PY',          mtd: rev.py_mtd,     eom: rev.py_eom,     var_mtd: rev.var_vs_py_mtd,     var_eom: rev.var_vs_py_eom,     pct_mtd: rev.pct_of_py_mtd,     pct_eom: rev.pct_of_py_eom },
+    { label: "'26 Budget", mtd: rev.budget_mtd,  eom: rev.budget_eom,  var_mtd: rev.var_vs_budget_mtd,  var_eom: rev.var_vs_budget_eom,  pct_mtd: rev.pct_of_budget_mtd,  pct_eom: rev.pct_of_budget_eom },
+    { label: "'26 OKR",    mtd: rev.okr_mtd,     eom: rev.okr_eom,     var_mtd: rev.var_vs_okr_mtd,     var_eom: rev.var_vs_okr_eom,     pct_mtd: rev.pct_of_okr_mtd,     pct_eom: rev.pct_of_okr_eom },
+  ]
+  const procRows = [
+    { label: 'PY',          mtd: proc.py_mtd,    eom: proc.py_eom,    var_mtd: proc.var_vs_py_mtd,    var_eom: proc.var_vs_py_eom,    pct_mtd: proc.pct_of_py_mtd,    pct_eom: proc.pct_of_py_eom },
+    { label: "'26 Budget", mtd: proc.budget_mtd, eom: proc.budget_eom, var_mtd: proc.var_vs_budget_mtd, var_eom: proc.var_vs_budget_eom, pct_mtd: proc.pct_of_budget_mtd, pct_eom: proc.pct_of_budget_eom },
+    { label: "'26 OKR",    mtd: proc.okr_mtd,    eom: proc.okr_eom,    var_mtd: null,                   var_eom: null,                   pct_mtd: null,                   pct_eom: null },
+  ]
+
   return (
     <div>
-      <SectionTable
-        title="Total Surgery Care Revenue ($mm)"
-        rows={revRows}
-        actual_mtd={rev.actual_mtd}
-        actual_eom={rev.actual_eom}
-        isRev={true}
-      />
-      <SectionTable
-        title="Total Surgery Care Procedure Count"
-        rows={procRows}
-        actual_mtd={proc.actual_mtd}
-        actual_eom={proc.actual_eom}
-        isRev={false}
-      />
+      <Section title="" rows={revRows} actualMtd={rev.actual_mtd} actualEom={rev.actual_eom} isRev={true} />
+      <Section title="" rows={procRows} actualMtd={proc.actual_mtd} actualEom={proc.actual_eom} isRev={false} />
     </div>
   )
 }
