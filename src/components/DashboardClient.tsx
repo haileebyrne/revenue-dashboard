@@ -352,7 +352,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
 
   const allClients = (data as any).top50 || []
   const top50Only = (data as any).top50_only || allClients.slice(0, 51)
-  const cohort2026 = ((data as any).cohort || []).filter((r: any) => String(r.vintage) === '2026')
+  const cohort2026 = (data as any).cohort || []
   const mtdData = (data as any).mtd_performance
 
   return (

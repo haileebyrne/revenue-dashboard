@@ -359,39 +359,51 @@ export async function GET() {
     const top50 = [...allClients].slice(0, 50).concat([totalRow]);
     const allWithTotal = [...allClients, totalRow];
 
-    // Cohort
-    const cohort = inputs.map((c: any) => {
-      const name = c.care_hub_name;
-      const surg  = surgByName[name];
-      const act   = actByName[name] || Object.entries(actByName).find(([k]) =>
-        k.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(k.toLowerCase())
-      )?.[1];
-      const funnelData = funnelByCode[name?.toUpperCase()] || funnelByCode[surg?.client_code?.toUpperCase()];
-      const aprMtd  = surg?.scheduled_rev || 0;
-      const aprEom  = surgEomRev[name] || 0;
-      const priorRev = act?.prior_rev || 0;
-      const ytdEst  = priorRev + aprEom;
-      const ytdActProcs = ytdPriorMonthsProcs[name] || 0;
-      const ytdEomProcs26 = ytdActProcs + (surgEomProcs[name] || 0);
-      return {
-        client_name: name,
-        go_live_date: c.modeling_go_live || c.contract_start_date,
-        ees: c.ees,
-        fee_structure: c.fee_structure || '—',
-        carveout: carveoutLabel(c.carve_out),
-        vintage: c.cohort,
-        ytd_first_calls: funnelData ? parseInt(funnelData.ytd_first_calls) || null : null,
-        ytd_new_cases: funnelData ? parseInt(funnelData.ytd_new_cases) || null : null,
-        eop_active_cases: funnelData ? parseInt(funnelData.eop_active_cases) || null : null,
-        ytd_consults: funnelData ? parseInt(funnelData.ytd_consults) || null : null,
-        ytd_procedures: ytdEomProcs26 || null,
-        apr_revenue: Math.round(aprMtd / 1000),
-        apr_eom_est: Math.round(aprEom / 1000),
-        ytd_revenue: Math.round(ytdEst / 1000),
-        ytd_vs_budget_pct: null,
-        ytd_vs_model_pct: null,
-      };
-    }).sort((a: any, b: any) => (b.ytd_revenue || 0) - (a.ytd_revenue || 0));
+    // Helper to format date fields to YYYY-MM-DD
+    function fmtDate(raw: any): string | null {
+      if (!raw) return null;
+      try {
+        const d = new Date(raw);
+        if (isNaN(d.getTime())) return null;
+        return d.toISOString().substring(0, 10);
+      } catch { return null; }
+    }
+
+    // Cohort — only 2026 vintage clients
+    const cohort = inputs
+      .filter((c: any) => String(c.cohort) === '2026')
+      .map((c: any) => {
+        const name = c.care_hub_name;
+        const surg  = surgByName[name];
+        const act   = actByName[name] || Object.entries(actByName).find(([k]) =>
+          k.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(k.toLowerCase())
+        )?.[1];
+        const funnelData = funnelByCode[name?.toUpperCase()] || funnelByCode[surg?.client_code?.toUpperCase()];
+        const aprMtd  = surg?.scheduled_rev || 0;
+        const aprEom  = surgEomRev[name] || 0;
+        const priorRev = act?.prior_rev || 0;
+        const ytdEst  = priorRev + aprEom;
+        const ytdActProcs = ytdPriorMonthsProcs[name] || 0;
+        const ytdEomProcs26 = ytdActProcs + (surgEomProcs[name] || 0);
+        return {
+          client_name: name,
+          go_live_date: fmtDate(c.modeling_go_live) || fmtDate(c.contract_start_date),
+          ees: c.ees,
+          fee_structure: c.fee_structure || '—',
+          carveout: carveoutLabel(c.carve_out),
+          vintage: String(c.cohort),
+          ytd_first_calls: funnelData ? parseInt(funnelData.ytd_first_calls) || null : null,
+          ytd_new_cases: funnelData ? parseInt(funnelData.ytd_new_cases) || null : null,
+          eop_active_cases: funnelData ? parseInt(funnelData.eop_active_cases) || null : null,
+          ytd_consults: funnelData ? parseInt(funnelData.ytd_consults) || null : null,
+          ytd_procedures: ytdEomProcs26 || null,
+          apr_revenue: Math.round(aprMtd / 1000),
+          apr_eom_est: Math.round(aprEom / 1000),
+          ytd_revenue: Math.round(ytdEst / 1000),
+          ytd_vs_budget_pct: null,
+          ytd_vs_model_pct: null,
+        };
+      }).sort((a: any, b: any) => (b.ytd_revenue || 0) - (a.ytd_revenue || 0));
 
     // MTD Performance data
     const varRevBudget = Math.round(totalScheduledRev - curBudRev);
