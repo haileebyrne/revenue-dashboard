@@ -563,7 +563,7 @@ export async function GET() {
         budget_mtd:        budgetTotalProcs || null,
         budget_eom:        budgetTotalProcsEom || null,
         okr_mtd:           okrTotalProcs || null,
-        okr_eom:           null,
+        okr_eom:           okrTotalProcs ? Math.round(okrTotalProcs / scaleDownFactor) : null,
         var_vs_py_mtd:     pyTotalProcs ? actTotalProcs - pyTotalProcs : null,
         var_vs_py_eom:     pyTotalProcs ? actTotalProcsEom - pyTotalProcs : null,
         var_vs_budget_mtd: budgetTotalProcs ? actTotalProcs - budgetTotalProcs : null,
