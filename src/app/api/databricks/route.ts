@@ -503,11 +503,14 @@ export async function GET() {
     const pyTotalMtd = toM(pyMonthRev + pyFixedMtd + pyOtherMtd);
     const pyTotalEom = toM(pyMonthRev + pyFixedMtd + pyOtherMtd); // PY full month
 
-    const budgetTotalMtd = toM((budgetVarFeeRev || curBudRev) * scaleDownFactor + budgetFixedFeeRev * scaleDownFactor + budgetOtherFeeRev * scaleDownFactor);
-    const budgetTotalEom = toM((budgetVarFeeRev || curBudRev) + budgetFixedFeeRev + budgetOtherFeeRev);
+    // Use other_revenues table values directly - don't mix with curBudRev
+    const budVarRev = budgetVarFeeRev || curBudRev;
+    const budgetTotalEom = toM(budVarRev + budgetFixedFeeRev + budgetOtherFeeRev);
+    const budgetTotalMtd = toM((budVarRev + budgetFixedFeeRev + budgetOtherFeeRev) * scaleDownFactor);
 
-    const okrTotalMtd = toM((okrVarFeeRev || curBudRev * 1.1) * scaleDownFactor + okrFixedFeeRev * scaleDownFactor + okrOtherFeeRev * scaleDownFactor);
-    const okrTotalEom = toM((okrVarFeeRev || curBudRev * 1.1) + okrFixedFeeRev + okrOtherFeeRev);
+    const okrVarRev = okrVarFeeRev || (budVarRev * 1.1);
+    const okrTotalEom = toM(okrVarRev + okrFixedFeeRev + okrOtherFeeRev);
+    const okrTotalMtd = toM((okrVarRev + okrFixedFeeRev + okrOtherFeeRev) * scaleDownFactor);
 
     // Procedure counts
     const pyVarProcs = Object.values(priorProcByClient).reduce((a, c) => a + (c[month] || 0), 0);
@@ -516,11 +519,28 @@ export async function GET() {
 
     const budgetVarProcs = Math.round((budgetVarFeeRev || curBudRev) / Math.max(totalScheduledRev / Math.max(totalScheduledProcs, 1), 1));
     const budgetFixedProcs = 521; // from Data Sources row 22
-    const budgetTotalProcs = budgetVarProcs + budgetFixedProcs;
-    const budgetTotalProcsEom = Math.round(budgetTotalProcs / scaleDownFactor);
-
-    const okrVarProcs = Math.round(budgetVarProcs * 1.4); // OKR from Data Sources row 40
-    const okrTotalProcs = okrVarProcs + budgetFixedProcs;
+    // Proc counts from other_revenues table (proc_count category)
+    let budgetVarProcs = 0;
+    let budgetFixedProcs = 521;
+    let okrVarProcs = 0;
+    let okrFixedProcs = 521;
+    for (const r of otherRevenues) {
+      const parsed = parseYearMonth(r.revenue_month);
+      if (!parsed) continue;
+      const { ry, rm } = parsed;
+      const dt = String(r.data_type || '');
+      const rt = String(r.revenue_type || '');
+      const cat = String(r.category || '');
+      if (cat === 'proc_count' && ry === year && rm === month) {
+        if (dt === 'budget' && rt === 'Variable Procs') budgetVarProcs = parseRevenue(r.amount);
+        if (dt === 'budget' && rt === 'Fixed Procs') budgetFixedProcs = parseRevenue(r.amount);
+        if (dt === 'okr' && rt === 'Variable Procs') okrVarProcs = parseRevenue(r.amount);
+        if (dt === 'okr' && rt === 'Fixed Procs') okrFixedProcs = parseRevenue(r.amount);
+      }
+    }
+    const budgetTotalProcs = Math.round((budgetVarProcs || 2471) + (budgetFixedProcs || 521));
+    const budgetTotalProcsEom = budgetTotalProcs;
+    const okrTotalProcs = Math.round((okrVarProcs || 2959) + (okrFixedProcs || 521));
 
     const actTotalProcs = totalScheduledProcs;
     const actTotalProcsEom = totalEomProcs;
