@@ -53,7 +53,7 @@ export async function GET() {
     const curveAtToday = SCHEDULING_CURVE[currentBizDay] || 0.85;
     const scaleUpFactor = curveAtToday > 0 ? 1 / curveAtToday : 1;
 
-    const [actual, budget, inputs, curSurgeries, ytdSurgeries, priorSurgeries, funnel] = await Promise.all([
+    const [actual, budget, inputs, curSurgeries, ytdSurgeries, priorSurgeries, otherRevenues, funnel] = await Promise.all([
 
       // Actual revenues (all historical)
       queryDatabricks(
@@ -115,6 +115,13 @@ export async function GET() {
           AND requested_procedure_item_category <> 'INFUSION'
         GROUP BY client_name, MONTH(date_of_service)`,
         'prior-surgeries'
+      ),
+
+      // Other revenues (fixed fee, PEPM, etc.) for MTD Performance
+      queryDatabricks(
+        \`SELECT revenue_month, revenue_type, category, amount, data_type
+        FROM sandboxwarehouse.growth_analytics.other_revenues\`,
+        'other-rev'
       ),
 
       // Full Funnel data for cohort tab
@@ -430,23 +437,114 @@ export async function GET() {
       }).sort((a: any, b: any) => (b.ytd_revenue || 0) - (a.ytd_revenue || 0));
 
     // MTD Performance data
-    const varRevBudget = Math.round(totalScheduledRev - curBudRev);
-    const varRevPY = Math.round(totalScheduledRev - pyMonthRev);
-    const varEomBudget = Math.round(totalEomRev - curBudRev);
-    const varEomPY = Math.round(totalEomRev - pyMonthRev);
+    // Aggregate other_revenues by data_type and month
+    const orActualMtd: Record<string, number> = {};   // revenue_type -> MTD actual
+    const orActualEom: Record<string, number> = {};   // revenue_type -> full month actual (PY same month)
+    const orBudgetMtd: number[] = [];                 // monthly budget amounts
+    const orOkrMtd: number[] = [];                    // monthly OKR amounts
+    let otherRevPYMonth = 0;
+    let otherRevBudgetMonth = 0;
+    let otherRevOkrMonth = 0;
+    let otherRevPYYtd = 0;
+    let otherRevBudgetYtd = 0;
+    let otherRevOkrYtd = 0;
+
+    for (const r of otherRevenues) {
+      const rev = parseRevenue(r.amount);
+      const parsed = parseYearMonth(r.revenue_month);
+      if (!parsed) continue;
+      const { ry, rm } = parsed;
+      const dt = String(r.data_type || '');
+
+      if (dt === 'actual' && ry === year - 1 && rm === month) otherRevPYMonth += rev;
+      if (dt === 'actual' && ry === year - 1 && rm < month) otherRevPYYtd += rev;
+      if (dt === 'budget' && ry === year && rm === month) otherRevBudgetMonth += rev;
+      if (dt === 'budget' && ry === year && rm <= month) otherRevBudgetYtd += rev;
+      if (dt === 'okr' && ry === year && rm === month) otherRevOkrMonth += rev;
+      if (dt === 'okr' && ry === year && rm <= month) otherRevOkrYtd += rev;
+    }
+
+    // Total revenue = variable-fee surgery + other revenues
+    const totalActualMtd = totalScheduledRev + (orActualMtd['Fixed Fee Revenue'] || 0);
+    const totalActualEom = totalEomRev + (orActualMtd['Fixed Fee Revenue'] || 0);
+    const totalPYMonth = pyMonthRev + otherRevPYMonth;
+    const totalPYYtd = pyYtdRev + otherRevPYYtd;
+    const totalBudgetMonth = curBudRev + otherRevBudgetMonth;
+    const totalBudgetYtd = ytdBudRev + otherRevBudgetYtd;
+    const totalOkrMonth = otherRevOkrMonth || totalBudgetMonth * 1.1;
+    const totalOkrYtd = otherRevOkrYtd || totalBudgetYtd * 1.1;
+
+    // Procedure counts
+    const totalActualProcs = totalScheduledProcs;
+    const totalEomProcsEst = totalEomProcs;
+    const pyProcsMonth = Object.values(priorProcByClient).reduce((a, c) => a + (c[month] || 0), 0);
+    const pyProcsYtd = totalPriorProcs;
+
+    // Budget proc counts from budgeted_revenues implied by avg rev/proc
+    const budgetProcsMonth = totalBudgetMonth > 0 && totalScheduledRev > 0
+      ? Math.round(totalBudgetMonth / (totalScheduledRev / Math.max(totalScheduledProcs, 1)))
+      : null;
+
+    const fmtMtdRev = (v: number) => parseFloat((v / 1_000_000).toFixed(1));
+
     const mtdPerformance = {
+      date: new Date().toISOString().substring(0, 10),
+      month_label: new Date().toLocaleString('en-US', { month: 'short', year: '2-digit' }),
+      // Revenue section ($M)
+      revenue: {
+        actual_mtd:   fmtMtdRev(totalScheduledRev),
+        actual_eom:   fmtMtdRev(totalEomRev),
+        py_mtd:       fmtMtdRev(totalPYMonth),
+        py_eom:       fmtMtdRev(totalPYMonth),
+        budget_mtd:   fmtMtdRev(totalBudgetMonth),
+        budget_eom:   fmtMtdRev(totalBudgetMonth),
+        okr_mtd:      fmtMtdRev(totalOkrMonth),
+        okr_eom:      fmtMtdRev(totalOkrMonth),
+        var_vs_py_mtd:     fmtMtdRev(totalScheduledRev - totalPYMonth),
+        var_vs_py_eom:     fmtMtdRev(totalEomRev - totalPYMonth),
+        var_vs_budget_mtd: fmtMtdRev(totalScheduledRev - totalBudgetMonth),
+        var_vs_budget_eom: fmtMtdRev(totalEomRev - totalBudgetMonth),
+        var_vs_okr_mtd:    fmtMtdRev(totalScheduledRev - totalOkrMonth),
+        var_vs_okr_eom:    fmtMtdRev(totalEomRev - totalOkrMonth),
+        pct_of_py_mtd:     totalPYMonth ? parseFloat((totalScheduledRev / totalPYMonth).toFixed(3)) : null,
+        pct_of_py_eom:     totalPYMonth ? parseFloat((totalEomRev / totalPYMonth).toFixed(3)) : null,
+        pct_of_budget_mtd: totalBudgetMonth ? parseFloat((totalScheduledRev / totalBudgetMonth).toFixed(3)) : null,
+        pct_of_budget_eom: totalBudgetMonth ? parseFloat((totalEomRev / totalBudgetMonth).toFixed(3)) : null,
+        pct_of_okr_mtd:    totalOkrMonth ? parseFloat((totalScheduledRev / totalOkrMonth).toFixed(3)) : null,
+        pct_of_okr_eom:    totalOkrMonth ? parseFloat((totalEomRev / totalOkrMonth).toFixed(3)) : null,
+      },
+      // Procedure count section
+      procedures: {
+        actual_mtd:   totalActualProcs,
+        actual_eom:   totalEomProcsEst,
+        py_mtd:       pyProcsMonth || null,
+        py_eom:       pyProcsMonth || null,
+        budget_mtd:   budgetProcsMonth,
+        budget_eom:   budgetProcsMonth ? Math.round(budgetProcsMonth * scaleUpFactor) : null,
+        okr_mtd:      budgetProcsMonth ? Math.round(budgetProcsMonth * 1.1) : null,
+        okr_eom:      budgetProcsMonth ? Math.round(budgetProcsMonth * 1.1 * scaleUpFactor) : null,
+        var_vs_py_mtd:     pyProcsMonth ? totalActualProcs - pyProcsMonth : null,
+        var_vs_py_eom:     pyProcsMonth ? totalEomProcsEst - pyProcsMonth : null,
+        var_vs_budget_mtd: budgetProcsMonth ? totalActualProcs - budgetProcsMonth : null,
+        var_vs_budget_eom: budgetProcsMonth ? totalEomProcsEst - budgetProcsMonth : null,
+        pct_of_py_mtd:     pyProcsMonth ? parseFloat((totalActualProcs / pyProcsMonth).toFixed(3)) : null,
+        pct_of_py_eom:     pyProcsMonth ? parseFloat((totalEomProcsEst / pyProcsMonth).toFixed(3)) : null,
+        pct_of_budget_mtd: budgetProcsMonth ? parseFloat((totalActualProcs / budgetProcsMonth).toFixed(3)) : null,
+        pct_of_budget_eom: budgetProcsMonth ? parseFloat((totalEomProcsEst / budgetProcsMonth).toFixed(3)) : null,
+      },
+      // Legacy fields for backward compat
       apr_mtd: Math.round(totalScheduledRev),
       apr_eom_fcst: Math.round(totalEomRev),
       vs_py_mtd: pyMonthRev || null,
       vs_py_eom: Math.round(totalEomRev) || null,
-      var_vs_py_mtd: pyMonthRev ? varRevPY : null,
-      var_vs_py_eom: pyMonthRev ? varEomPY : null,
+      var_vs_py_mtd: pyMonthRev ? Math.round(totalScheduledRev - pyMonthRev) : null,
+      var_vs_py_eom: pyMonthRev ? Math.round(totalEomRev - pyMonthRev) : null,
       pct_vs_py_mtd: pyMonthRev ? parseFloat((totalScheduledRev / pyMonthRev).toFixed(3)) : null,
       pct_vs_py_eom: pyMonthRev ? parseFloat((totalEomRev / pyMonthRev).toFixed(3)) : null,
       vs_budget_mtd: curBudRev || null,
       vs_budget_eom: curBudRev || null,
-      var_vs_budget_mtd: curBudRev ? varRevBudget : null,
-      var_vs_budget_eom: curBudRev ? varEomBudget : null,
+      var_vs_budget_mtd: curBudRev ? Math.round(totalScheduledRev - curBudRev) : null,
+      var_vs_budget_eom: curBudRev ? Math.round(totalEomRev - curBudRev) : null,
       pct_vs_budget_mtd: curBudRev ? parseFloat((totalScheduledRev / curBudRev).toFixed(3)) : null,
       pct_vs_budget_eom: curBudRev ? parseFloat((totalEomRev / curBudRev).toFixed(3)) : null,
     };
