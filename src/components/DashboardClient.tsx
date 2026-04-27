@@ -331,7 +331,7 @@ function MtdPerformance({ data }: { data: any }) {
   const procRows = [
     { label: 'PY',          mtd: proc.py_mtd,    eom: proc.py_eom,    var_mtd: proc.var_vs_py_mtd,    var_eom: proc.var_vs_py_eom,    pct_mtd: proc.pct_of_py_mtd,    pct_eom: proc.pct_of_py_eom },
     { label: "'26 Budget", mtd: proc.budget_mtd, eom: proc.budget_eom, var_mtd: proc.var_vs_budget_mtd, var_eom: proc.var_vs_budget_eom, pct_mtd: proc.pct_of_budget_mtd, pct_eom: proc.pct_of_budget_eom },
-    { label: "'26 OKR",    mtd: proc.okr_mtd,    eom: proc.okr_eom,    var_mtd: null,                   var_eom: null,                   pct_mtd: null,                   pct_eom: null },
+    { label: "'26 OKR",    mtd: proc.okr_mtd,    eom: proc.okr_eom,    var_mtd: proc.var_vs_okr_mtd,   var_eom: proc.var_vs_okr_eom,   pct_mtd: proc.pct_of_okr_mtd,   pct_eom: proc.pct_of_okr_eom },
   ]
 
   return (
