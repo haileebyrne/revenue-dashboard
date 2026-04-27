@@ -119,8 +119,8 @@ export async function GET() {
 
       // Other revenues (fixed fee, PEPM, etc.) for MTD Performance
       queryDatabricks(
-        \`SELECT revenue_month, revenue_type, category, amount, data_type
-        FROM sandboxwarehouse.growth_analytics.other_revenues\`,
+        `SELECT revenue_month, revenue_type, category, amount, data_type
+        FROM sandboxwarehouse.growth_analytics.other_revenues`,
         'other-rev'
       ),
 
