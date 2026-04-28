@@ -199,12 +199,6 @@ export async function GET() {
 
     // Current month surgeries aggregation
     const surgByName: Record<string, { client_code: string; care_hub_name: string; fee_structure: string; carve_out: any; ees: any; scheduled: number; scheduled_rev: number }> = {};
-    // Build EEs lookup from client_inputs (full numbers)
-    const eesByCode: Record<string, number> = {};
-    for (const c of inputs) {
-      if (c.ees && c.care_hub_name) eesByCode[c.care_hub_name.toUpperCase()] = parseInt(c.ees);
-    }
-
     for (const s of curSurgeries) {
       const key = s.client_name;
       if (!surgByName[key]) {
@@ -314,7 +308,7 @@ export async function GET() {
         vintage: act?.vintage ?? null,
         fee_structure: act?.fee_structure ?? surg?.fee_structure ?? '—',
         carveout: act?.carveout ?? carveoutLabel(surg?.carve_out),
-        ees: eesByCode[r.client_name?.toUpperCase()] || (surg?.ees ? parseInt(surg.ees) : null) || null,
+        ees: (surg?.ees ? parseInt(surg.ees) : null) ?? act?.ees ?? null,
         // Procedures
         procs26_jan: procs26[0], procs26_feb: procs26[1], procs26_mar: procs26[2],
         procs26_apr_mtd: surg?.scheduled || null,
