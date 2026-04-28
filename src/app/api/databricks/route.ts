@@ -308,7 +308,7 @@ export async function GET() {
         vintage: act?.vintage ?? null,
         fee_structure: act?.fee_structure ?? surg?.fee_structure ?? '—',
         carveout: act?.carveout ?? carveoutLabel(surg?.carve_out),
-        ees: eesByName[r.client_name] || (surg?.ees ? parseInt(surg.ees) : null) || act?.ees || null,
+        ees: (surg?.ees ? parseInt(surg.ees) : null) ?? act?.ees ?? null,
         // Procedures
         procs26_jan: procs26[0], procs26_feb: procs26[1], procs26_mar: procs26[2],
         procs26_apr_mtd: surg?.scheduled || null,
