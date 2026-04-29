@@ -624,74 +624,104 @@ function RevenueWaterfall({ data }: { data: any }) {
   const mb = (data.kpis as any)?.monthly_budget || {}
   const budM = (m: number) => mb[String(m)] ? (mb[String(m)] + 3172352 + 670908) / 1_000_000 : null
   const months = [
-    { label: 'Jan', value: totalRow?.rev26_jan ? totalRow.rev26_jan / 1000 + fixedOther : null, budget: budM(1) },
-    { label: 'Feb', value: totalRow?.rev26_feb ? totalRow.rev26_feb / 1000 + fixedOther : null, budget: budM(2) },
-    { label: 'Mar', value: totalRow?.rev26_mar ? totalRow.rev26_mar / 1000 + fixedOther : null, budget: budM(3) },
+    { label: 'Jan',     value: totalRow?.rev26_jan ? totalRow.rev26_jan / 1000 + fixedOther : null, budget: budM(1) },
+    { label: 'Feb',     value: totalRow?.rev26_feb ? totalRow.rev26_feb / 1000 + fixedOther : null, budget: budM(2) },
+    { label: 'Mar',     value: totalRow?.rev26_mar ? totalRow.rev26_mar / 1000 + fixedOther : null, budget: budM(3) },
     { label: 'Apr MTD', value: mtd.actual_mtd || null, budget: mtd.budget_mtd || null },
-    { label: 'Apr Fcst', value: mtd.actual_eom || null, budget: mtd.budget_eom || null, forecast: true },
+    { label: 'Apr Fcst',value: mtd.actual_eom || null, budget: mtd.budget_eom || null, forecast: true },
   ]
 
-  const budget = mtd.budget_eom || null
   const py = mtd.py_eom || null
-
   const validVals = months.map(m => m.value).filter(v => v != null) as number[]
   if (!validVals.length) return null
 
-  const maxV = Math.max(...validVals, budget || 0, py || 0) * 1.15
-  const W = 560, H = 100, PAD_L = 40, PAD_R = 20, PAD_T = 10, PAD_B = 24
-  const barW = 48
+  const maxV = Math.max(...validVals, py || 0) * 1.18
+  const W = 580, H = 130, PAD_L = 44, PAD_R = 28, PAD_T = 14, PAD_B = 26
+  const barW = 52
   const chartW = W - PAD_L - PAD_R
   const chartH = H - PAD_T - PAD_B
   const spacing = chartW / months.length
   const toY = (v: number) => PAD_T + chartH - (v / maxV) * chartH
   const barX = (i: number) => PAD_L + i * spacing + (spacing - barW) / 2
 
+  const COLOR_ABOVE    = '#1a5c3a'
+  const COLOR_NEAR     = '#2a7a50'
+  const COLOR_BELOW    = '#c0392b'
+  const COLOR_NONE     = '#1a5c3a'
+  const COLOR_FORECAST = 'rgba(26,58,42,0.75)'
+  const COLOR_BUDGET   = '#7ab3d4'
+  const COLOR_PY       = 'rgba(245,237,217,0.28)'
+
+  const barColor = (m: typeof months[0]) => {
+    if (m.forecast) return COLOR_FORECAST
+    if (!m.budget) return COLOR_NONE
+    if (m.value! >= m.budget) return COLOR_ABOVE
+    if (m.value! >= m.budget * 0.95) return COLOR_NEAR
+    return COLOR_BELOW
+  }
+
   return (
-    <div style={{padding:'8px 24px 0', background:'transparent'}}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', maxWidth:640, height:H}}>
-        {/* Y axis labels */}
+    <div style={{padding:'10px 24px 0', background:'transparent'}}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', maxWidth:680, height:H}}>
+        {[0.25, 0.5, 0.75, 1].map(t => (
+          <line key={t} x1={PAD_L} x2={W - PAD_R} y1={toY(maxV * t)} y2={toY(maxV * t)}
+            stroke="rgba(245,237,217,0.07)" strokeWidth={1} />
+        ))}
         {[0, 0.5, 1].map(t => {
           const v = maxV * t
-          return <text key={t} x={PAD_L - 4} y={toY(v) + 3} textAnchor="end" fontSize={8} fill="var(--text-3)">${v.toFixed(0)}M</text>
+          return <text key={t} x={PAD_L - 5} y={toY(v) + 3} textAnchor="end"
+            fontSize={8.5} fill="rgba(245,237,217,0.4)">${v >= 1 ? v.toFixed(0) : v.toFixed(1)}M</text>
         })}
-
-        {/* PY line */}
-        {py && <>
-          <line x1={PAD_L} x2={W - PAD_R} y1={toY(py)} y2={toY(py)} stroke="rgba(245,237,217,0.35)" strokeWidth={1} />
-          <text x={W - PAD_R + 2} y={toY(py) + 3} fontSize={8} fill="rgba(245,237,217,0.5)">PY</text>
-        </>}
-        {/* Bars */}
+        {py && (
+          <g>
+            <line x1={PAD_L} x2={W - PAD_R - 14} y1={toY(py)} y2={toY(py)}
+              stroke={COLOR_PY} strokeWidth={1.5} strokeDasharray="3,3" />
+            <text x={W - PAD_R - 12} y={toY(py) + 3} fontSize={8} fill="rgba(245,237,217,0.4)">PY</text>
+          </g>
+        )}
         {months.map((m, i) => {
           if (m.value == null) return null
           const bx = barX(i)
           const by = toY(m.value)
-          const bh = H - PAD_B - by
-          const mBud = (m as any).budget
-          const color = m.forecast ? 'rgba(26,107,85,0.4)' : (mBud && m.value >= mBud ? '#2a9d6e' : mBud && m.value >= mBud * 0.95 ? 'var(--teal-mid)' : mBud ? '#e05252' : 'var(--teal-mid)')
+          const bh = Math.max(2, H - PAD_B - by)
           return (
             <g key={i}>
-              <rect x={bx} y={by} width={barW} height={bh} fill={color} rx={3} />
-              {(m as any).budget && <line x1={bx} x2={bx+barW} y1={toY((m as any).budget)} y2={toY((m as any).budget)} stroke="#5b9bd5" strokeWidth={2} />}
-              <text x={bx + barW/2} y={by - 3} textAnchor="middle" fontSize={8.5} fill="var(--text-1)" fontWeight={600}>${m.value.toFixed(1)}M</text>
-              {(m as any).budget && <line x1={bx} x2={bx+barW} y1={toY((m as any).budget)} y2={toY((m as any).budget)} stroke="#5b9bd5" strokeWidth={2} strokeLinecap="round" />}
-              <text x={bx + barW/2} y={H - PAD_B + 10} textAnchor="middle" fontSize={8} fill="var(--text-3)">{m.label}</text>
+              <rect x={bx} y={by} width={barW} height={bh} fill={barColor(m)} rx={3} />
+              <rect x={bx} y={by} width={barW} height={3} fill="rgba(255,255,255,0.08)" rx={3} />
+              {m.budget != null && (
+                <line x1={bx - 4} x2={bx + barW + 4}
+                  y1={toY(m.budget)} y2={toY(m.budget)}
+                  stroke={COLOR_BUDGET} strokeWidth={1.5} strokeLinecap="round" />
+              )}
+              <text x={bx + barW / 2} y={by - 4} textAnchor="middle"
+                fontSize={9} fill="rgba(245,237,217,0.9)" fontWeight={600}>
+                ${m.value.toFixed(1)}M
+              </text>
+              <text x={bx + barW / 2} y={H - PAD_B + 11} textAnchor="middle"
+                fontSize={8.5} fill="rgba(245,237,217,0.5)">
+                {m.label}
+              </text>
             </g>
           )
         })}
       </svg>
-      <div style={{display:'flex', gap:16, paddingLeft:40, paddingTop:4}}>
-        <div style={{fontSize:10, color:'var(--text-3)', display:'flex', alignItems:'center', gap:4}}>
-          <span style={{display:'inline-block',width:14,height:10,background:'var(--teal-mid)',borderRadius:2}}></span>Actual
-        </div>
-        <div style={{fontSize:10, color:'var(--text-3)', display:'flex', alignItems:'center', gap:4}}>
-          <span style={{display:'inline-block',width:14,height:10,background:'rgba(26,107,85,0.4)',borderRadius:2}}></span>Forecast
-        </div>
-        <div style={{fontSize:10, color:'var(--text-3)', display:'flex', alignItems:'center', gap:4}}>
-          <span style={{display:'inline-block',width:14,height:2,background:'#5b9bd5'}}></span>Budget
-        </div>
-        <div style={{fontSize:10, color:'var(--text-3)', display:'flex', alignItems:'center', gap:4}}>
-          <span style={{display:'inline-block',width:14,height:2,background:'rgba(245,237,217,0.3)'}}></span>Prior Year
-        </div>
+      <div style={{display:'flex', gap:18, paddingLeft:44, paddingTop:6, flexWrap:'wrap'}}>
+        {([
+          { color: '#1a5c3a',                  type: 'bar',  label: 'Actual' },
+          { color: 'rgba(26,58,42,0.75)',       type: 'bar',  label: 'Forecast' },
+          { color: '#7ab3d4',                   type: 'line', label: 'Budget' },
+          { color: 'rgba(245,237,217,0.28)',    type: 'dash', label: 'Prior Year' },
+        ] as {color:string,type:string,label:string}[]).map(({ color, type, label }) => (
+          <div key={label} style={{fontSize:10.5, color:'rgba(245,237,217,0.55)', display:'flex', alignItems:'center', gap:5}}>
+            {type === 'bar'
+              ? <span style={{display:'inline-block', width:12, height:10, background:color, borderRadius:2, flexShrink:0}} />
+              : type === 'line'
+              ? <span style={{display:'inline-block', width:16, height:2, background:color, flexShrink:0}} />
+              : <span style={{display:'inline-block', width:16, height:0, borderTop:`1.5px dashed ${color}`, flexShrink:0}} />
+            }
+            {label}
+          </div>
+        ))}
       </div>
     </div>
   )
