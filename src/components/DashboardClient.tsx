@@ -451,7 +451,10 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
       </header>
       <main className={styles.main}>
         <KpiRow kpis={data.kpis} />
-        <RevenueWaterfall data={data} />
+        <div style={{display:'flex', alignItems:'flex-start', flexWrap:'wrap'}}>
+          <RevenueWaterfall data={data} />
+          <Top5Clients data={data} />
+        </div>
         <div className={styles.tabs}>
           {([
             ['all',    'All Clients'],
@@ -611,6 +614,87 @@ function TrendChart({ data }: { data: any }) {
         <div><span style={{display:'inline-block',width:12,height:8,background:'var(--teal-mid)',marginRight:6,verticalAlign:'middle',borderRadius:2}}></span>Actual / Fcst</div>
         <div><span style={{display:'inline-block',width:12,height:2,background:'#5b9bd5',marginRight:6,verticalAlign:'middle'}}></span>Budget</div>
         <div><span style={{display:'inline-block',width:12,height:2,background:'rgba(245,237,217,0.3)',marginRight:6,verticalAlign:'middle'}}></span>PY</div>
+      </div>
+    </div>
+  )
+}
+
+function Top5Clients({ data }: { data: any }) {
+  const rows = ((data.top50 || []) as any[])
+    .filter((r: any) => !r.is_total && r.client_name !== 'Total Surgery Care Revenue')
+    .sort((a: any, b: any) => (b.rev26_ytd ?? 0) - (a.rev26_ytd ?? 0))
+    .slice(0, 5)
+
+  if (!rows.length) return null
+
+  const maxVal = Math.max(...rows.map((r: any) => Math.max(r.rev26_ytd ?? 0, r.rev25_ytd ?? 0))) * 1.15
+  const W = 300, ROW_H = 28, PAD_L = 110, PAD_R = 52, PAD_T = 8, BAR_H = 10
+  const H = PAD_T + rows.length * ROW_H + 24
+  const toW = (v: number) => v == null ? 0 : Math.max(0, (v / maxVal) * (W - PAD_L - PAD_R))
+  const rowY = (i: number) => PAD_T + i * ROW_H
+
+  return (
+    <div style={{
+      margin: '12px 0 0 16px',
+      background: '#ffffff',
+      border: '1px solid #D4E4DF',
+      borderRadius: 10,
+      padding: '14px 16px 10px',
+      display: 'inline-block',
+      verticalAlign: 'top',
+    }}>
+      <div style={{fontSize:11, fontWeight:600, color:'#3D6358', marginBottom:10, fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em'}}>Top 5 Clients — YTD Revenue</div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:W, height:H, display:'block', overflow:'visible'}}>
+        {rows.map((r: any, i: number) => {
+          const w26 = toW(r.rev26_ytd ?? 0)
+          const w25 = toW(r.rev25_ytd ?? 0)
+          const aboveBudget = (r.ytd_vs_budget_pct ?? 0) >= -5
+          const bar26color = aboveBudget ? '#1A6B55' : '#C0392B'
+          const y = rowY(i)
+          const shortName = r.client_name.length > 16 ? r.client_name.slice(0, 15) + '…' : r.client_name
+          return (
+            <g key={i}>
+              {/* Client name */}
+              <text x={PAD_L - 6} y={y + BAR_H + 2} textAnchor="end"
+                fontSize={10.5} fill="#0D2B22" fontFamily="DM Sans, sans-serif">
+                {shortName}
+              </text>
+              {/* PY bar (behind) */}
+              <rect x={PAD_L} y={y + 1} width={w25} height={BAR_H + 8}
+                fill="#E8F2EF" rx={3} />
+              {/* 26 bar (front) */}
+              <rect x={PAD_L} y={y} width={w26} height={BAR_H}
+                fill={bar26color} rx={3} />
+              {/* Value label */}
+              <text x={PAD_L + w26 + 5} y={y + BAR_H - 1}
+                fontSize={10} fill="#0D2B22" fontFamily="DM Sans, sans-serif" fontWeight="600">
+                ${((r.rev26_ytd ?? 0) / 1000).toFixed(1)}M
+              </text>
+              {/* vs budget badge */}
+              {r.ytd_vs_budget_pct != null && (
+                <text x={W - 2} y={y + BAR_H - 1} textAnchor="end"
+                  fontSize={9.5} fontFamily="DM Sans, sans-serif"
+                  fill={aboveBudget ? '#1A6B3C' : '#C0392B'}>
+                  {r.ytd_vs_budget_pct >= 0 ? '+' : ''}{r.ytd_vs_budget_pct.toFixed(1)}%
+                </text>
+              )}
+            </g>
+          )
+        })}
+        {/* X axis line */}
+        <line x1={PAD_L} x2={W - PAD_R} y1={H - 16} y2={H - 16} stroke="#D4E4DF" strokeWidth={1} />
+      </svg>
+      {/* Legend */}
+      <div style={{display:'flex', gap:16, paddingLeft:110, paddingTop:4}}>
+        <div style={{display:'flex', alignItems:'center', gap:4, fontSize:10, color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>
+          <span style={{width:10, height:8, background:'#1A6B55', borderRadius:2, display:'inline-block'}} />'26
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:4, fontSize:10, color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>
+          <span style={{width:10, height:8, background:'#E8F2EF', border:'1px solid #7A9E94', borderRadius:2, display:'inline-block'}} />'25
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:4, fontSize:10, color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>
+          <span style={{width:8, height:8, background:'#C0392B', borderRadius:2, display:'inline-block'}} />Below budget
+        </div>
       </div>
     </div>
   )
