@@ -103,7 +103,165 @@ function Filters({ search, onSearch, fee, onFee, carve, onCarve, vintage, onVint
   )
 }
 
+function ClientModal({ client, onClose }: { client: any; onClose: () => void }) {
+  if (!client) return null
+
+  const months = ['Jan','Feb','Mar','Apr']
+  const rev26 = [client.rev26_jan, client.rev26_feb, client.rev26_mar, client.rev26_apr_mtd]
+  const rev25 = [client.rev25_jan, client.rev25_feb, client.rev25_mar, client.rev25_apr]
+  const p26   = [client.procs26_jan, client.procs26_feb, client.procs26_mar, client.procs26_apr_mtd]
+  const p25   = [client.procs25_jan, client.procs25_feb, client.procs25_mar, client.procs25_apr]
+
+  const allRevVals = [...rev26, ...rev25].filter(v => v != null) as number[]
+  const allProcVals = [...p26, ...p25].filter(v => v != null) as number[]
+  const maxRev  = allRevVals.length  ? Math.max(...allRevVals)  * 1.2 : 1
+  const maxProc = allProcVals.length ? Math.max(...allProcVals) * 1.2 : 1
+
+  const CW = 320, CH = 80, PAD_L = 8, PAD_R = 8, PAD_T = 10, PAD_B = 20
+  const chartW = CW - PAD_L - PAD_R
+  const chartH = CH - PAD_T - PAD_B
+  const barGrpW = chartW / 4
+  const barW = barGrpW * 0.35
+
+  const toY = (v: number, max: number) => PAD_T + chartH - (v / max) * chartH
+  const barX26 = (i: number) => PAD_L + i * barGrpW + barGrpW * 0.1
+  const barX25 = (i: number) => PAD_L + i * barGrpW + barGrpW * 0.1 + barW + 3
+
+  const MiniChart = ({ vals26, vals25, max, fmt }: { vals26: (number|null)[]; vals25: (number|null)[]; max: number; fmt: (v:number)=>string }) => (
+    <svg viewBox={`0 0 ${CW} ${CH}`} width={CW} height={CH} style={{display:'block', overflow:'visible'}}>
+      {[0.5, 1].map(t => (
+        <line key={t} x1={PAD_L} x2={CW-PAD_R} y1={toY(max*t, max)} y2={toY(max*t, max)}
+          stroke="#D4E4DF" strokeWidth={1} />
+      ))}
+      {vals26.map((v, i) => v == null ? null : (
+        <g key={i}>
+          <rect x={barX26(i)} y={toY(v, max)} width={barW}
+            height={Math.max(2, CH - PAD_B - toY(v, max))} fill="#1A6B55" rx={2} />
+        </g>
+      ))}
+      {vals25.map((v, i) => v == null ? null : (
+        <rect key={i} x={barX25(i)} y={toY(v, max)} width={barW}
+          height={Math.max(2, CH - PAD_B - toY(v, max))} fill="#9FE1CB" rx={2} />
+      ))}
+      {months.map((m, i) => (
+        <text key={i} x={PAD_L + i * barGrpW + barGrpW/2} y={CH - 4}
+          textAnchor="middle" fontSize={9} fontFamily="DM Sans, sans-serif"
+          style={{fill:'#3D6358'}}>{m}</text>
+      ))}
+      {vals26.map((v, i) => v != null && v === Math.max(...(vals26.filter(x=>x!=null) as number[])) ? (
+        <text key={i} x={barX26(i) + barW/2} y={toY(v, max) - 3}
+          textAnchor="middle" fontSize={8} fontFamily="DM Sans, sans-serif"
+          style={{fill:'#0D2B22'}} fontWeight={600}>{fmt(v)}</text>
+      ) : null)}
+    </svg>
+  )
+
+  const Stat = ({ label, value, color }: { label: string; value: string; color?: string }) => (
+    <div style={{background:'#F7F9F8', borderRadius:8, padding:'10px 14px', minWidth:100}}>
+      <div style={{fontSize:10, color:'#7A9E94', fontFamily:'DM Sans, sans-serif', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.04em'}}>{label}</div>
+      <div style={{fontSize:16, fontWeight:600, fontFamily:'DM Sans, sans-serif', color: color || '#0D2B22'}}>{value}</div>
+    </div>
+  )
+
+  const budgPct = client.ytd_vs_budget_pct
+  const pyPct   = client.ytd_vs_py_pct
+  const budgColor = budgPct == null ? '#0D2B22' : budgPct >= 0 ? '#1A6B3C' : '#C0392B'
+  const pyColor   = pyPct   == null ? '#0D2B22' : pyPct   >= 0 ? '#1A6B3C' : '#C0392B'
+
+  return (
+    <div style={{position:'fixed', inset:0, background:'rgba(11,79,62,0.45)', zIndex:1000,
+      display:'flex', alignItems:'center', justifyContent:'center'}}
+      onClick={onClose}>
+      <div style={{background:'#fff', borderRadius:14, width:720, maxWidth:'95vw', maxHeight:'90vh',
+        overflowY:'auto', boxShadow:'0 8px 40px rgba(11,79,62,0.18)'}}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{background:'#0B4F3E', borderRadius:'14px 14px 0 0', padding:'20px 24px', display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+          <div>
+            <div style={{fontSize:18, fontWeight:600, color:'#F5EDD9', fontFamily:'DM Sans, sans-serif'}}>{client.client_name}</div>
+            <div style={{display:'flex', gap:12, marginTop:8, flexWrap:'wrap'}}>
+              {[
+                { label: 'Vintage',      val: client.vintage ?? '—' },
+                { label: 'Fee',          val: client.fee_structure ?? '—' },
+                { label: 'Carve-out',    val: client.carveout ?? '—' },
+                { label: 'EEs',          val: client.ees ? Number(client.ees).toLocaleString() : '—' },
+              ].map(p => (
+                <div key={p.label} style={{fontSize:11, fontFamily:'DM Sans, sans-serif'}}>
+                  <span style={{color:'rgba(245,237,217,0.55)'}}>{p.label}: </span>
+                  <span style={{color:'#F5EDD9', fontWeight:600}}>{String(p.val)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:'rgba(245,237,217,0.15)', border:'none',
+            color:'#F5EDD9', fontSize:18, cursor:'pointer', borderRadius:8, width:32, height:32,
+            display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>✕</button>
+        </div>
+
+        <div style={{padding:'20px 24px', display:'flex', flexDirection:'column', gap:20}}>
+
+          {/* KPI stats */}
+          <div style={{display:'flex', gap:10, flexWrap:'wrap'}}>
+            <Stat label="YTD Revenue '26" value={client.rev26_ytd ? `$${Number(client.rev26_ytd).toLocaleString()}k` : '—'} />
+            <Stat label="YTD vs Budget"   value={budgPct != null ? `${budgPct >= 0 ? '+' : ''}${budgPct.toFixed(1)}%` : '—'} color={budgColor} />
+            <Stat label="YTD vs PY"       value={pyPct   != null ? `${pyPct   >= 0 ? '+' : ''}${pyPct.toFixed(1)}%`   : '—'} color={pyColor} />
+            <Stat label="Avg Rev/Proc"    value={client.avg_rev_per_proc ? `$${Number(client.avg_rev_per_proc).toLocaleString()}` : '—'} />
+            <Stat label="YTD Procedures"  value={client.procs26_ytd ? Number(client.procs26_ytd).toLocaleString() : '—'} />
+          </div>
+
+          {/* Revenue chart */}
+          <div>
+            <div style={{fontSize:11, fontWeight:600, color:'#3D6358', fontFamily:'DM Sans, sans-serif',
+              textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8}}>Monthly Revenue ($k)</div>
+            <MiniChart vals26={rev26} vals25={rev25} max={maxRev} fmt={v => `$${v}k`} />
+            <div style={{display:'flex', gap:14, marginTop:4}}>
+              <div style={{display:'flex', alignItems:'center', gap:4, fontSize:10, color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>
+                <span style={{width:10, height:10, background:'#1A6B55', borderRadius:2, display:'inline-block'}} />'26
+              </div>
+              <div style={{display:'flex', alignItems:'center', gap:4, fontSize:10, color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>
+                <span style={{width:10, height:10, background:'#9FE1CB', borderRadius:2, display:'inline-block'}} />'25
+              </div>
+            </div>
+          </div>
+
+          {/* Procedures chart */}
+          <div>
+            <div style={{fontSize:11, fontWeight:600, color:'#3D6358', fontFamily:'DM Sans, sans-serif',
+              textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8}}>Monthly Procedures</div>
+            <MiniChart vals26={p26} vals25={p25} max={maxProc} fmt={v => String(Math.round(v))} />
+            <div style={{display:'flex', gap:14, marginTop:4}}>
+              <div style={{display:'flex', alignItems:'center', gap:4, fontSize:10, color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>
+                <span style={{width:10, height:10, background:'#1A6B55', borderRadius:2, display:'inline-block'}} />'26
+              </div>
+              <div style={{display:'flex', alignItems:'center', gap:4, fontSize:10, color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>
+                <span style={{width:10, height:10, background:'#9FE1CB', borderRadius:2, display:'inline-block'}} />'25
+              </div>
+            </div>
+          </div>
+
+          {/* Funnel metrics */}
+          {(client.ytd_first_calls != null || client.ytd_new_cases != null || client.ytd_consults != null) && (
+            <div>
+              <div style={{fontSize:11, fontWeight:600, color:'#3D6358', fontFamily:'DM Sans, sans-serif',
+                textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8}}>Funnel Metrics YTD</div>
+              <div style={{display:'flex', gap:10, flexWrap:'wrap'}}>
+                <Stat label="First Calls"  value={client.ytd_first_calls != null ? Number(client.ytd_first_calls).toLocaleString() : '—'} />
+                <Stat label="New Cases"    value={client.ytd_new_cases   != null ? Number(client.ytd_new_cases).toLocaleString()   : '—'} />
+                <Stat label="Consults"     value={client.ytd_consults    != null ? Number(client.ytd_consults).toLocaleString()    : '—'} />
+                <Stat label="Procedures"   value={client.ytd_procedures  != null ? Number(client.ytd_procedures).toLocaleString()  : '—'} />
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ClientTable({ rows }: { rows: any[] }) {
+  const [selectedClient, setSelectedClient] = useState<any>(null)
   const [sort, setSort] = useState<SortState>({ col: 'rev26_ytd', dir: -1 })
   const [search, setSearch] = useState('')
   const [fee, setFee] = useState('')
@@ -165,6 +323,7 @@ function ClientTable({ rows }: { rows: any[] }) {
   return (
     <>
       <Filters search={search} onSearch={setSearch} fee={fee} onFee={setFee} carve={carve} onCarve={setCarve} vintage={vintage} onVintage={setVintage} vintages={vintages} count={filtered.length} onExport={() => exportCSV(sorted, 'clients.csv')} />
+      {selectedClient && <ClientModal client={selectedClient} onClose={() => setSelectedClient(null)} />}
       <div className={styles.tblWrap}><div className={styles.tblScroll}><table className={styles.table}>
         <thead>
           <tr>
