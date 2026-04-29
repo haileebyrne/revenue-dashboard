@@ -490,8 +490,8 @@ export async function GET() {
     const scaleDownFactor = curveAtToday; // = biz days progress (0-1)
     const fixedFeeMtd = fixedFeeEom * scaleDownFactor;
     const otherFeeMtd = otherFeeEom * scaleDownFactor;
-    const pyFixedMtd = pyFixedFeeRev;  // PY actual fixed fee (full month)
-    const pyOtherMtd = pyOtherFeeRev;  // PY actual other fee (full month, excl CCD/Infusions)
+    const pyFixedMtd = pyFixedFeeRev;  // PY PEPM from other_revenues
+    const pyOtherMtd = pyOtherFeeRev;  // PY other fees from other_revenues (excl CCD/Infusions)
 
     // Total MTD and EOM revenue ($M)
     const actVarMtd = totalScheduledRev;
@@ -505,8 +505,8 @@ export async function GET() {
     // pyMonthRev already includes all revenue types from actual_revenues
     // other_revenues has PEPM/other fees which would double-count
     // Just use pyMonthRev directly (actual_revenues has full picture)
-    const pyTotalMtd = toM(pyMonthRev);
-    const pyTotalEom = toM(pyMonthRev); // PY full month actual
+    const pyTotalMtd = toM(pyMonthRev + pyFixedMtd + pyOtherMtd);
+    const pyTotalEom = toM(pyMonthRev + pyFixedMtd + pyOtherMtd);
 
     // Use other_revenues table values directly - don't mix with curBudRev
     // Budget/OKR use Data Sources numbers (PEPM is in otherFeeRev, not fixed fee)
