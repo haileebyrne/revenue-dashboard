@@ -573,135 +573,165 @@ function FunnelTab({ data }: { data: any }) {
 
   if (loading) return <div style={{padding:'32px 24px', color:'#3D6358', fontFamily:'DM Sans, sans-serif', fontSize:14}}>Loading funnel data...</div>
   if (error)   return <div style={{padding:'32px 24px', color:'#C0392B', fontFamily:'DM Sans, sans-serif', fontSize:14}}>Error: {error}</div>
-  if (!rows.length) return <div style={{padding:'32px 24px', color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>No funnel data available</div>
+  if (!rows.length) return <div style={{padding:'32px 24px', color:'#3D6358'}}>No funnel data available</div>
 
-  const n = (v: any) => parseInt(v) || 0
-  const fmtN = (v: any) => v == null ? '—' : Number(Math.round(n(v))).toLocaleString()
-  const fmtPct = (a: any, b: any) => n(b) > 0 ? (n(a)/n(b)*100).toFixed(1)+'%' : '—'
+  const n = (v: any) => parseFloat(v) || 0
+  const fmt1 = (v: number) => isNaN(v) || !isFinite(v) ? 'na' : v.toFixed(1)
 
-  const pctColor = (a: any, b: any) => {
-    if (!n(b)) return {}
-    const p = n(a)/n(b)*100
-    if (p >= 60) return {color:'#1A6B3C', fontWeight:600}
-    if (p >= 40) return {color:'#0D2B22'}
-    return {color:'#C0392B', fontWeight:600}
+  // Build lookup: yyyy_mm -> row
+  const byMonth: Record<string, any> = {}
+  rows.forEach((r: any) => { byMonth[r.yyyy_mm] = r })
+
+  const years = [...new Set(rows.map((r: any) => r.yyyy_mm.slice(0, 4)))].sort() as string[]
+  const months = ['01','02','03','04','05','06','07','08','09','10','11','12']
+  const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+  // Per-10k calculations (cumulative within year = total ytd / avg members)
+  const per10k = (metric: string, yyyyMm: string) => {
+    const r = byMonth[yyyyMm]
+    if (!r) return 'na'
+    const m18 = n(r.unique_members_18)
+    if (!m18) return 'na'
+    return fmt1(n(r[metric]) / m18 * 10000)
   }
 
-  const years = [...new Set(rows.map((r:any) => r.yyyy_mm.slice(0,4)))].sort()
+  // Cumulative per-10k for a year up to a given month
+  const cumulPer10k = (metric: string, yr: string, upToMonth: string) => {
+    const yrRows = rows.filter((r: any) => r.yyyy_mm >= `${yr}-01` && r.yyyy_mm <= `${yr}-${upToMonth}`)
+    const totalMetric = yrRows.reduce((s: number, r: any) => s + n(r[metric]), 0)
+    const avgM18 = yrRows.length ? yrRows.reduce((s: number, r: any) => s + n(r.unique_members_18), 0) / yrRows.length : 0
+    if (!avgM18) return 'na'
+    return fmt1(totalMetric / avgM18 * 10000)
+  }
 
-  // 2026 YTD summary cards
-  const ytd26 = rows.filter((r:any) => r.yyyy_mm.startsWith('2026'))
-  const tot = (k: string) => ytd26.reduce((s:number, r:any) => s + n(r[k]), 0)
-  const calls = tot('first_call_count'), cases = tot('new_opened_cases'),
-        consults = tot('reached_consult'), procs = tot('reached_procedure'),
-        completed = tot('completed_cases'), c30 = tot('consult_within_30_days'), s90 = tot('surgery_within_90_days')
+  // Year total per-10k
+  const yearPer10k = (metric: string, yr: string) => {
+    const yrRows = rows.filter((r: any) => r.yyyy_mm.startsWith(yr))
+    const total = yrRows.reduce((s: number, r: any) => s + n(r[metric]), 0)
+    const avgM18 = yrRows.length ? yrRows.reduce((s: number, r: any) => s + n(r.unique_members_18), 0) / yrRows.length : 0
+    if (!avgM18) return 'na'
+    return fmt1(total / avgM18 * 10000)
+  }
 
-  const summaryCards = [
-    { label: '2026 YTD First Calls',    value: fmtN(calls) },
-    { label: '2026 YTD New Cases',      value: fmtN(cases),     sub: `${fmtPct(cases,calls)} call→case` },
-    { label: '2026 YTD Consults',       value: fmtN(consults),  sub: `${fmtPct(consults,cases)} case→consult` },
-    { label: '2026 YTD Procedures',     value: fmtN(procs),     sub: `${fmtPct(procs,consults)} consult→proc` },
-    { label: '2026 YTD Completed',      value: fmtN(completed) },
-    { label: 'Consult ≤30 days',   value: fmtN(c30),       sub: `${fmtPct(c30,consults)} of consults` },
-    { label: 'Surgery ≤90 days',   value: fmtN(s90),       sub: `${fmtPct(s90,procs)} of procs` },
+  const cellVal = (yr: string, mo: string, metric: string) => {
+    const key = `${yr}-${mo}`
+    const r = byMonth[key]
+    if (!r) return 'na'
+    const m18 = n(r.unique_members_18)
+    if (!m18) return 'na'
+    return fmt1(n(r[metric]) / m18 * 10000)
+  }
+
+  const colorCell = (val: string, baseline?: string) => {
+    if (val === 'na') return {color:'#9CA3AF'}
+    if (!baseline || baseline === 'na') return {}
+    const v = parseFloat(val), b = parseFloat(baseline)
+    if (v > b * 1.05) return {background:'#DCFCE7', color:'#166534'}
+    if (v < b * 0.95) return {background:'#FEE2E2', color:'#991B1B'}
+    return {}
+  }
+
+  const metrics = [
+    { label: 'Calls per 10k Members (Cuml.)', key: 'first_call_count' },
+    { label: 'Cases per 10k Members (Cuml.)', key: 'new_opened_cases' },
+    { label: 'Consults per 10k Members', key: 'reached_consult' },
+    { label: 'Procedures per 10k Members', key: 'reached_procedure' },
   ]
 
-  const TH = ({ children, right }: any) => (
-    <th style={{padding:'8px 12px', color:'#F5EDD9', fontWeight:500, fontSize:11,
-      textAlign: right ? 'right' : 'left', whiteSpace:'nowrap', letterSpacing:'0.02em'}}>
-      {children}
-    </th>
-  )
-  const TD = ({ children, style }: any) => (
-    <td style={{padding:'7px 12px', fontSize:12, ...style}}>{children}</td>
-  )
+  const thStyle: any = {
+    padding: '8px 10px',
+    color: '#F5EDD9',
+    fontWeight: 600,
+    fontSize: 11,
+    textAlign: 'center' as const,
+    whiteSpace: 'nowrap' as const,
+    background: '#0B4F3E',
+    borderRight: '1px solid rgba(245,237,217,0.15)',
+  }
+  const metricHeaderStyle: any = {
+    ...thStyle,
+    textAlign: 'left' as const,
+    minWidth: 220,
+  }
 
   return (
-    <div style={{paddingBottom:40}}>
-      {/* Summary cards */}
-      <div style={{display:'flex', gap:12, padding:'20px 24px 0', flexWrap:'wrap'}}>
-        {summaryCards.map(c => (
-          <div key={c.label} style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:8, padding:'12px 16px', minWidth:150}}>
-            <div style={{fontSize:10, color:'#7A9E94', textTransform:'uppercase', letterSpacing:'0.05em', fontFamily:'DM Sans, sans-serif', marginBottom:4}}>{c.label}</div>
-            <div style={{fontSize:18, fontWeight:600, color:'#0D2B22', fontFamily:'DM Sans, sans-serif'}}>{c.value}</div>
-            {c.sub && <div style={{fontSize:11, color:'#3D6358', fontFamily:'DM Sans, sans-serif', marginTop:2}}>{c.sub}</div>}
-          </div>
-        ))}
-      </div>
-
-      {/* Table */}
-      <div style={{padding:'20px 24px 0'}}>
-        <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, overflow:'hidden'}}>
-          <div style={{overflowX:'auto'}}>
-            <table style={{width:'100%', borderCollapse:'collapse', fontFamily:'DM Sans, sans-serif'}}>
-              <thead>
-                <tr style={{background:'#0B4F3E'}}>
-                  <TH>Month</TH>
-                  <TH right>First Calls</TH>
-                  <TH right>New Cases</TH>
-                  <TH right>Call→Case %</TH>
-                  <TH right>Consults</TH>
-                  <TH right>Case→Consult %</TH>
-                  <TH right>Procedures</TH>
-                  <TH right>Consult→Proc %</TH>
-                  <TH right>Completed</TH>
-                  <TH right>Consult ≤30d</TH>
-                  <TH right>Surgery ≤90d</TH>
+    <div style={{paddingBottom: 40}}>
+      <div style={{padding:'20px 24px 0', overflowX:'auto'}}>
+        <table style={{borderCollapse:'collapse', fontFamily:'DM Sans, sans-serif', fontSize:12, width:'100%'}}>
+          <thead>
+            <tr>
+              <th style={metricHeaderStyle}></th>
+              {monthLabels.map((m, i) => (
+                <th key={m} style={{...thStyle, minWidth:52}}>{m}</th>
+              ))}
+              <th style={{...thStyle, background:'#0B4F3E', fontWeight:700}}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {metrics.map((metric, mi) => (
+              <>
+                {/* Metric group header */}
+                <tr key={`header-${metric.key}`}>
+                  <td colSpan={14} style={{
+                    padding: '8px 12px',
+                    background: '#0B4F3E',
+                    color: '#F5EDD9',
+                    fontWeight: 700,
+                    fontSize: 12,
+                    borderTop: mi > 0 ? '3px solid #fff' : 'none',
+                  }}>
+                    {metric.label}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {years.map((yr:any) => {
-                  const yrRows = rows.filter((r:any) => r.yyyy_mm.startsWith(yr))
-                  const yt = (k: string) => yrRows.reduce((s:number,r:any) => s+n(r[k]), 0)
-                  const yc = yt('first_call_count'), ycs = yt('new_opened_cases'),
-                        yco = yt('reached_consult'), yp = yt('reached_procedure'),
-                        ycm = yt('completed_cases'), yc30 = yt('consult_within_30_days'), ys90 = yt('surgery_within_90_days')
+                {/* Year rows */}
+                {years.map((yr, yi) => {
+                  const isYTD = yr === '2026'
+                  const label = isYTD ? `${yr} YTD` : yr
+                  const baseYr = yi > 0 ? years[yi-1] : null
+
                   return (
-                    <>
-                      {/* Year header */}
-                      <tr key={`yr-${yr}`}>
-                        <td colSpan={11} style={{padding:'6px 12px', background:'#E8F2EF',
-                          color:'#0B4F3E', fontWeight:600, fontSize:11, letterSpacing:'0.05em'}}>
-                          {yr}
-                        </td>
-                      </tr>
-                      {/* Month rows */}
-                      {yrRows.map((r:any, i:number) => (
-                        <tr key={r.yyyy_mm} style={{background: i%2===0 ? '#fff' : '#F7F9F8'}}>
-                          <TD><span style={{color:'#0D2B22', fontWeight:500}}>{r.yyyy_mm}</span></TD>
-                          <TD style={{textAlign:'right', color:'#0D2B22'}}>{fmtN(r.first_call_count)}</TD>
-                          <TD style={{textAlign:'right', color:'#0D2B22'}}>{fmtN(r.new_opened_cases)}</TD>
-                          <TD style={{textAlign:'right', ...pctColor(r.new_opened_cases, r.first_call_count)}}>{fmtPct(r.new_opened_cases, r.first_call_count)}</TD>
-                          <TD style={{textAlign:'right', color:'#0D2B22'}}>{fmtN(r.reached_consult)}</TD>
-                          <TD style={{textAlign:'right', ...pctColor(r.reached_consult, r.new_opened_cases)}}>{fmtPct(r.reached_consult, r.new_opened_cases)}</TD>
-                          <TD style={{textAlign:'right', color:'#0D2B22'}}>{fmtN(r.reached_procedure)}</TD>
-                          <TD style={{textAlign:'right', ...pctColor(r.reached_procedure, r.reached_consult)}}>{fmtPct(r.reached_procedure, r.reached_consult)}</TD>
-                          <TD style={{textAlign:'right', color:'#0D2B22'}}>{fmtN(r.completed_cases)}</TD>
-                          <TD style={{textAlign:'right', color:'#3D6358'}}>{fmtN(r.consult_within_30_days)}</TD>
-                          <TD style={{textAlign:'right', color:'#3D6358'}}>{fmtN(r.surgery_within_90_days)}</TD>
-                        </tr>
-                      ))}
-                      {/* Year subtotal */}
-                      <tr key={`sub-${yr}`} style={{background:'#EDE3CC'}}>
-                        <TD><span style={{color:'#0B4F3E', fontWeight:700, fontSize:11}}>Total {yr}</span></TD>
-                        <TD style={{textAlign:'right', color:'#0B4F3E', fontWeight:600}}>{fmtN(yc)}</TD>
-                        <TD style={{textAlign:'right', color:'#0B4F3E', fontWeight:600}}>{fmtN(ycs)}</TD>
-                        <TD style={{textAlign:'right', fontWeight:600, ...pctColor(ycs,yc)}}>{fmtPct(ycs,yc)}</TD>
-                        <TD style={{textAlign:'right', color:'#0B4F3E', fontWeight:600}}>{fmtN(yco)}</TD>
-                        <TD style={{textAlign:'right', fontWeight:600, ...pctColor(yco,ycs)}}>{fmtPct(yco,ycs)}</TD>
-                        <TD style={{textAlign:'right', color:'#0B4F3E', fontWeight:600}}>{fmtN(yp)}</TD>
-                        <TD style={{textAlign:'right', fontWeight:600, ...pctColor(yp,yco)}}>{fmtPct(yp,yco)}</TD>
-                        <TD style={{textAlign:'right', color:'#0B4F3E', fontWeight:600}}>{fmtN(ycm)}</TD>
-                        <TD style={{textAlign:'right', color:'#3D6358', fontWeight:600}}>{fmtN(yc30)}</TD>
-                        <TD style={{textAlign:'right', color:'#3D6358', fontWeight:600}}>{fmtN(ys90)}</TD>
-                      </tr>
-                    </>
+                    <tr key={`${metric.key}-${yr}`} style={{background: yi % 2 === 0 ? '#fff' : '#F7F9F8'}}>
+                      <td style={{padding:'6px 12px', color:'#0D2B22', fontWeight:500, borderRight:'2px solid #E8F2EF'}}>
+                        {label}
+                      </td>
+                      {months.map((mo, moi) => {
+                        const key = `${yr}-${mo}`
+                        const hasData = !!byMonth[key]
+                        const val = hasData ? cellVal(yr, mo, metric.key) : 'na'
+                        const baseVal = baseYr ? cellVal(baseYr, mo, metric.key) : undefined
+                        const style = colorCell(val, baseVal)
+                        return (
+                          <td key={mo} style={{
+                            padding:'6px 10px',
+                            textAlign:'center',
+                            fontSize:11,
+                            color: val === 'na' ? '#9CA3AF' : '#0D2B22',
+                            borderRight:'1px solid #F0F0F0',
+                            ...style
+                          }}>
+                            {val}
+                          </td>
+                        )
+                      })}
+                      {/* Total column */}
+                      <td style={{
+                        padding:'6px 10px',
+                        textAlign:'center',
+                        fontWeight:600,
+                        fontSize:11,
+                        color:'#0D2B22',
+                        background:'#EDF7F4',
+                        borderLeft:'2px solid #D4E4DF',
+                      }}>
+                        {yearPer10k(metric.key, yr)}
+                      </td>
+                    </tr>
                   )
                 })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

@@ -4,6 +4,19 @@ import { queryDatabricks } from '@/lib/databricks';
 export const dynamic = 'force-dynamic';
 
 const QUERY = `
+WITH cases AS (
+  SELECT * FROM datawarehouse.core.member_case_detail
+  WHERE product_name <> 'Hinge Health'
+    AND case_created_date >= '2023-01-01'
+    AND (case_status NOT IN ('Closed','Void') OR case_closed_date >= date_trunc('YEAR', add_months(current_date(), -36)))
+),
+members AS (
+  SELECT date_format(month_end, 'yyyy-MM') AS yyyy_mm,
+         SUM(unique_members_18) AS unique_members_18
+  FROM datawarehouse.client_mart.client_monthly_member_counts
+  WHERE month_end >= '2023-01-01'
+  GROUP BY date_format(month_end, 'yyyy-MM')
+)
 SELECT
   date_format(date_trunc('month', c.case_created_date), 'yyyy-MM') AS yyyy_mm,
   COUNT(DISTINCT c.member_case_id) AS total_calls,
@@ -13,12 +26,13 @@ SELECT
   COUNT(DISTINCT CASE WHEN c.first_surgery_date IS NOT NULL OR c.member_journey_status IN ('Procedure','Post Procedure') THEN c.member_case_id END) AS reached_procedure,
   COUNT(DISTINCT CASE WHEN c.case_closed_reason_category = 'Case Complete' THEN c.member_case_id END) AS completed_cases,
   COUNT(DISTINCT CASE WHEN c.first_consult_date IS NOT NULL AND DATEDIFF(c.first_consult_date, c.case_created_date) <= 30 THEN c.member_case_id END) AS consult_within_30_days,
-  COUNT(DISTINCT CASE WHEN c.first_surgery_date IS NOT NULL AND DATEDIFF(c.first_surgery_date, c.case_created_date) <= 90 THEN c.member_case_id END) AS surgery_within_90_days
-FROM datawarehouse.core.member_case_detail c
-WHERE c.product_name <> 'Hinge Health'
-  AND c.case_created_date >= '2023-01-01'
-  AND (c.case_status NOT IN ('Closed','Void') OR c.case_closed_date >= date_trunc('YEAR', add_months(current_date(), -36)))
-GROUP BY date_format(date_trunc('month', c.case_created_date), 'yyyy-MM')
+  COUNT(DISTINCT CASE WHEN c.first_surgery_date IS NOT NULL AND DATEDIFF(c.first_surgery_date, c.case_created_date) <= 90 THEN c.member_case_id END) AS surgery_within_90_days,
+  COALESCE(m.unique_members_18, 0) AS unique_members_18
+FROM cases c
+LEFT JOIN members m ON m.yyyy_mm = date_format(date_trunc('month', c.case_created_date), 'yyyy-MM')
+GROUP BY
+  date_format(date_trunc('month', c.case_created_date), 'yyyy-MM'),
+  m.unique_members_18
 ORDER BY yyyy_mm
 `;
 
