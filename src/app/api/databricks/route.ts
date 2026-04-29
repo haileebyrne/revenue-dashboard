@@ -255,6 +255,7 @@ export async function GET() {
       if (ry === year) {
         ytdBudRev += rev;
         if (rm === month) curBudRev += rev;
+        monthlyBudgetTotals[rm] = (monthlyBudgetTotals[rm] || 0) + rev;
         if (rm <= month) {
           budByName[r.client_name] = (budByName[r.client_name] || 0) + rev;
         }
