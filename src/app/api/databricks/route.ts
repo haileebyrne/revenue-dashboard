@@ -412,6 +412,11 @@ export async function GET() {
     }
 
     // Carveout Summary
+    // Scale factor to align carveout totals with KPI totals
+    const carveoutProcScaleFactor = totalScheduledProcs > 0 ? totalEomProcs / totalScheduledProcs : scaleUpFactor;
+    const carveoutYtdProcScaleFactor = (totalYtdActProcs + totalScheduledProcs) > 0
+      ? (totalYtdActProcs + totalEomProcs) / (totalYtdActProcs + totalScheduledProcs)
+      : 1;
     const carveoutTypes = ['Bariatric Carve-Out', 'Multi Carve-Out', 'Voluntary'];
     const carveoutSummary = carveoutTypes.map(co => {
       const clients = allClients.filter((r: any) => !r.is_total && ((r.carveout === co) || (co === 'Voluntary' && (!r.carveout || r.carveout === '—'))));
@@ -424,8 +429,8 @@ export async function GET() {
         procs26_feb: totals(clients, 'procs26_feb') || null,
         procs26_mar: totals(clients, 'procs26_mar') || null,
         procs26_apr_mtd: totals(clients, 'procs26_apr_mtd') || null,
-        procs26_apr_est: totals(clients, 'procs26_apr_est') || null,
-        procs26_ytd: totals(clients, 'procs26_ytd') || null,
+        procs26_apr_est: totals(clients, 'procs26_apr_est') ? Math.round(totals(clients, 'procs26_apr_est') * carveoutProcScaleFactor) : null,
+        procs26_ytd: totals(clients, 'procs26_ytd') ? Math.round(totals(clients, 'procs26_ytd') * carveoutYtdProcScaleFactor) : null,
         procs25_jan: totals(clients, 'procs25_jan') || null,
         procs25_feb: totals(clients, 'procs25_feb') || null,
         procs25_mar: totals(clients, 'procs25_mar') || null,
