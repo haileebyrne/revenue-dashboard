@@ -420,7 +420,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
           <span className={styles.sourceTag} style={{color:'rgba(245,237,217,0.5)'}}>
-            Updated {new Date(data.refreshedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+            Updated {typeof window !== 'undefined' ? new Date(data.refreshedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : ''}
           </span>
         </div>
       </header>
