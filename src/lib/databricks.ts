@@ -2,7 +2,7 @@ const CACHE: Record<string, { data: any; ts: number }> = {};
 const CACHE_TTL = 1000 * 60 * 30;
 
 async function pollStatement(host: string, token: string, statementId: string): Promise<any> {
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 3000));
     const res = await fetch(`https://${host}/api/2.0/sql/statements/${statementId}`, {
       headers: { 'Authorization': `Bearer ${token}` },
