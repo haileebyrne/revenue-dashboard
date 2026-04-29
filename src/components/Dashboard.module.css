@@ -273,6 +273,11 @@
 .row:nth-child(even) .td { background: var(--surface-alt); }
 .row:hover .td { background: var(--teal-light); }
 
+.totalRow {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+}
 .totalRow .td {
   background: var(--cream-dark) !important;
   font-weight: 600;
