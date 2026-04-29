@@ -454,6 +454,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
         <div style={{display:'flex', alignItems:'flex-start', flexWrap:'wrap'}}>
           <RevenueWaterfall data={data} />
           <Top5Clients data={data} />
+          <MtdGauges data={data} />
         </div>
         <div className={styles.tabs}>
           {([
@@ -614,6 +615,108 @@ function TrendChart({ data }: { data: any }) {
         <div><span style={{display:'inline-block',width:12,height:8,background:'var(--teal-mid)',marginRight:6,verticalAlign:'middle',borderRadius:2}}></span>Actual / Fcst</div>
         <div><span style={{display:'inline-block',width:12,height:2,background:'#5b9bd5',marginRight:6,verticalAlign:'middle'}}></span>Budget</div>
         <div><span style={{display:'inline-block',width:12,height:2,background:'rgba(245,237,217,0.3)',marginRight:6,verticalAlign:'middle'}}></span>PY</div>
+      </div>
+    </div>
+  )
+}
+
+function MtdGauges({ data }: { data: any }) {
+  const rev = data.mtd_performance?.revenue || {}
+  const pyPct   = rev.pct_of_py_eom   != null ? rev.pct_of_py_eom   * 100 : null
+  const budPct  = rev.pct_of_budget_eom != null ? rev.pct_of_budget_eom * 100 : null
+  const okrPct  = rev.pct_of_okr_eom  != null ? rev.pct_of_okr_eom  * 100 : null
+  const fcst    = data.kpis?.apr_month_forecast
+
+  if (pyPct == null && budPct == null && okrPct == null) return null
+
+  const gauges = [
+    { label: 'Prior Year', pct: pyPct,  color: '#1A6B55' },
+    { label: 'Budget',     pct: budPct, color: '#2563eb' },
+    { label: 'OKR',        pct: okrPct, color: '#7A9E94' },
+  ]
+
+  const CX = 80, CY = 90, R = 60, MAX_PCT = 140
+
+  const arcPath = (pctEnd: number) => {
+    const a0 = Math.PI
+    const a1 = Math.PI + (Math.min(pctEnd, MAX_PCT) / MAX_PCT) * Math.PI
+    const x0 = CX + R * Math.cos(a0), y0 = CY + R * Math.sin(a0)
+    const x1 = CX + R * Math.cos(a1), y1 = CY + R * Math.sin(a1)
+    const large = (pctEnd / MAX_PCT) > 0.5 ? 1 : 0
+    return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${R} ${R} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`
+  }
+
+  const Gauge = ({ label, pct, color }: { label: string; pct: number | null; color: string }) => {
+    if (pct == null) return null
+    const clamped = Math.min(Math.max(pct, 0), MAX_PCT)
+    const needleAngle = Math.PI + (clamped / MAX_PCT) * Math.PI
+    const nx = CX + 52 * Math.cos(needleAngle)
+    const ny = CY + 52 * Math.sin(needleAngle)
+    const tick100Angle = Math.PI + (100 / MAX_PCT) * Math.PI
+    const t100x0 = CX + (R - 8) * Math.cos(tick100Angle)
+    const t100y0 = CY + (R - 8) * Math.sin(tick100Angle)
+    const t100x1 = CX + (R + 8) * Math.cos(tick100Angle)
+    const t100y1 = CY + (R + 8) * Math.sin(tick100Angle)
+    const valColor = pct >= 100 ? '#1A6B3C' : pct >= 90 ? '#0D2B22' : '#C0392B'
+
+    return (
+      <div style={{textAlign:'center'}}>
+        <svg viewBox="0 0 160 110" width={160} height={110} style={{display:'block'}}>
+          <path d={arcPath(MAX_PCT)} fill="none" stroke="#E8F2EF" strokeWidth={14} strokeLinecap="round" />
+          <path d={arcPath(100)} fill="none" stroke="#D4E4DF" strokeWidth={14} strokeLinecap="round" />
+          <path d={arcPath(clamped)} fill="none" stroke={color} strokeWidth={14} strokeLinecap="round" />
+          <line x1={t100x0.toFixed(2)} y1={t100y0.toFixed(2)} x2={t100x1.toFixed(2)} y2={t100y1.toFixed(2)}
+            stroke="#0D2B22" strokeWidth={1.5} strokeLinecap="round" />
+          <line x1={CX} y1={CY} x2={nx.toFixed(2)} y2={ny.toFixed(2)}
+            stroke="#0D2B22" strokeWidth={2} strokeLinecap="round" />
+          <circle cx={CX} cy={CY} r={4} fill="#0D2B22" />
+          <text x={CX} y={CY - 12} textAnchor="middle" fontSize={20} fontWeight={600}
+            fontFamily="DM Sans, sans-serif" style={{fill: valColor}}>
+            {pct.toFixed(1)}%
+          </text>
+          <text x={CX} y={CY + 2} textAnchor="middle" fontSize={9}
+            fontFamily="DM Sans, sans-serif" style={{fill:'#7A9E94'}}>
+            of {label}
+          </text>
+          <text x={14} y={106} fontSize={8} fontFamily="DM Sans, sans-serif" style={{fill:'#7A9E94'}}>0%</text>
+          <text x={146} y={106} textAnchor="end" fontSize={8} fontFamily="DM Sans, sans-serif" style={{fill:'#7A9E94'}}>140%</text>
+        </svg>
+        <div style={{fontSize:10, fontWeight:600, color:'#3D6358', fontFamily:'DM Sans, sans-serif', marginTop:2}}>{label}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      margin: '12px 0 0 16px',
+      background: '#ffffff',
+      border: '1px solid #D4E4DF',
+      borderRadius: 10,
+      padding: '14px 20px 12px',
+      display: 'inline-block',
+      verticalAlign: 'top',
+    }}>
+      <div style={{fontSize:11, fontWeight:600, color:'#3D6358', fontFamily:'DM Sans, sans-serif',
+        textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:2}}>
+        Apr forecast attainment
+      </div>
+      {fcst != null && (
+        <div style={{fontSize:10, color:'#7A9E94', fontFamily:'DM Sans, sans-serif', marginBottom:10}}>
+          Forecast ${(fcst / 1_000_000).toFixed(1)}M
+        </div>
+      )}
+      <div style={{display:'flex', gap:12, alignItems:'flex-start'}}>
+        {gauges.map(g => <Gauge key={g.label} {...g} />)}
+      </div>
+      <div style={{display:'flex', gap:16, paddingTop:8, justifyContent:'center'}}>
+        {gauges.map(g => (
+          <div key={g.label} style={{display:'flex', alignItems:'center', gap:4,
+            fontSize:10, color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>
+            <span style={{width:10, height:10, background:g.color, borderRadius:2,
+              display:'inline-block', flexShrink:0}} />
+            {g.label}
+          </div>
+        ))}
       </div>
     </div>
   )
