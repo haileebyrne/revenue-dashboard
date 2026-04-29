@@ -325,3 +325,10 @@
 .tblWrap { max-height: calc(100vh - 420px); overflow-y: auto; display: flex; flex-direction: column; }
 .tblScroll { overflow-x: auto; flex: 1; }
 tfoot.sticky tr td { background: var(--cream-dark) !important; border-top: 2px solid var(--teal); }
+
+/* Sticky table header */
+.th, .thEst {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
