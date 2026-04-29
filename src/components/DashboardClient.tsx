@@ -451,7 +451,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
       </header>
       <main className={styles.main}>
         <KpiRow kpis={data.kpis} />
-        <TrendChart data={data} />
+        <RevenueWaterfall data={data} />
         <div className={styles.tabs}>
           {([
             ['all',    'All Clients'],
@@ -472,6 +472,71 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
         {tab === 'carveout' && <CarveoutTable rows={(data as any).carveoutSummary || []} />}
       </main>
     </div>
+  )
+}
+
+function CarveoutTable({ rows }: { rows: any[] }) {
+  if (!rows.length) return <div style={{padding:24}}>No carveout data</div>
+  const fmtN = (v: any) => v == null ? '—' : Number(Math.round(v)).toLocaleString()
+  const fmtM = (v: any) => v == null ? '—' : `$${(v/1000).toFixed(1)}M`
+  const isTotal = (r: any) => r.carveout === 'Total'
+
+  return (
+    <div className={styles.tblWrap}><div className={styles.tblScroll}>
+    <table className={styles.table}>
+      <thead>
+        <tr>
+          <th className={styles.th} style={{textAlign:'left'}}>Carve-Out</th>
+          <th className={`${styles.th} ${styles.right}`}># Clients</th>
+          <th className={`${styles.th} ${styles.right}`}>EEs</th>
+          <th className={styles.th} colSpan={6} style={{textAlign:'center', borderLeft:'2px solid rgba(245,237,217,0.2)'}}>YTD Procedures '26</th>
+          <th className={styles.th} colSpan={5} style={{textAlign:'center', borderLeft:'2px solid rgba(245,237,217,0.2)'}}>YTD Procedures '25</th>
+          <th className={styles.th} colSpan={6} style={{textAlign:'center', borderLeft:'2px solid rgba(245,237,217,0.2)'}}>Monthly Revenue '26 ($K)</th>
+          <th className={styles.th} colSpan={5} style={{textAlign:'center', borderLeft:'2px solid rgba(245,237,217,0.2)'}}>Monthly Revenue '25 ($K)</th>
+        </tr>
+        <tr>
+          <th className={styles.th}></th>
+          <th className={`${styles.th} ${styles.right}`}></th>
+          <th className={`${styles.th} ${styles.right}`}></th>
+          {['JAN','FEB','MAR','APR MTD','APR EST','YTD'].map(h => <th key={h} className={`${styles.th} ${styles.right}`} style={h==='JAN'?{borderLeft:'2px solid rgba(245,237,217,0.2)'}:{}}>{h}</th>)}
+          {['JAN','FEB','MAR','APR','YTD'].map(h => <th key={h} className={`${styles.th} ${styles.right}`} style={h==='JAN'?{borderLeft:'2px solid rgba(245,237,217,0.2)'}:{}}>{h}</th>)}
+          {['JAN','FEB','MAR','APR MTD','APR EST','YTD'].map(h => <th key={h} className={`${styles.th} ${styles.right}`} style={h==='JAN'?{borderLeft:'2px solid rgba(245,237,217,0.2)'}:{}}>{h}</th>)}
+          {['JAN','FEB','MAR','APR','YTD'].map(h => <th key={h} className={`${styles.th} ${styles.right}`} style={h==='JAN'?{borderLeft:'2px solid rgba(245,237,217,0.2)'}:{}}>{h}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r, i) => (
+          <tr key={i} className={`${styles.row} ${isTotal(r) ? styles.totalRow : ''}`}>
+            <td className={styles.td} style={{fontWeight: isTotal(r) ? 700 : 600}}>{r.carveout}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.client_count)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.ees)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>{fmtN(r.procs26_jan)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.procs26_feb)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.procs26_mar)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.procs26_apr_mtd)}</td>
+            <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtN(r.procs26_apr_est)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtN(r.procs26_ytd)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>{fmtN(r.procs25_jan)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.procs25_feb)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.procs25_mar)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.procs25_apr)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtN(r.procs25_ytd)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>{fmtM(r.rev26_jan)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtM(r.rev26_feb)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtM(r.rev26_mar)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtM(r.rev26_apr_mtd)}</td>
+            <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtM(r.rev26_apr_est)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtM(r.rev26_ytd)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>{fmtM(r.rev25_jan)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtM(r.rev25_feb)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtM(r.rev25_mar)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtM(r.rev25_apr)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtM(r.rev25_ytd)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    </div></div>
   )
 }
 
@@ -612,6 +677,71 @@ function TrendChart({ data }: { data: any }) {
         <div><span style={{display:'inline-block',width:12,height:2,background:'#5b9bd5',marginRight:6,verticalAlign:'middle',borderTop:'2px dashed #5b9bd5'}}></span>Budget</div>
         <div><span style={{display:'inline-block',width:12,height:2,background:'rgba(245,237,217,0.3)',marginRight:6,verticalAlign:'middle'}}></span>PY</div>
       </div>
+    </div>
+  )
+}
+
+function RevenueWaterfall({ data }: { data: any }) {
+  const totalRow = (data.top50 || []).find((r: any) => r.is_total)
+  const mtd = data.mtd_performance?.revenue || {}
+
+  const months = [
+    { label: 'Jan', value: totalRow?.rev26_jan ? totalRow.rev26_jan / 1000 : null },
+    { label: 'Feb', value: totalRow?.rev26_feb ? totalRow.rev26_feb / 1000 : null },
+    { label: 'Mar', value: totalRow?.rev26_mar ? totalRow.rev26_mar / 1000 : null },
+    { label: 'Apr MTD', value: mtd.actual_mtd || null },
+    { label: 'Apr Fcst', value: mtd.actual_eom || null, forecast: true },
+  ]
+
+  const budget = mtd.budget_eom || null
+  const py = mtd.py_eom || null
+
+  const validVals = months.map(m => m.value).filter(v => v != null) as number[]
+  if (!validVals.length) return null
+
+  const maxV = Math.max(...validVals, budget || 0, py || 0) * 1.15
+  const W = 560, H = 100, PAD_L = 40, PAD_R = 20, PAD_T = 10, PAD_B = 24
+  const barW = 48
+  const chartW = W - PAD_L - PAD_R
+  const chartH = H - PAD_T - PAD_B
+  const spacing = chartW / months.length
+  const toY = (v: number) => PAD_T + chartH - (v / maxV) * chartH
+  const barX = (i: number) => PAD_L + i * spacing + (spacing - barW) / 2
+
+  return (
+    <div style={{padding:'8px 24px 0', background:'transparent'}}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', maxWidth:640, height:H}}>
+        {/* Y axis labels */}
+        {[0, 0.5, 1].map(t => {
+          const v = maxV * t
+          return <text key={t} x={PAD_L - 4} y={toY(v) + 3} textAnchor="end" fontSize={8} fill="var(--text-3)">${v.toFixed(0)}M</text>
+        })}
+        {/* Budget line */}
+        {budget && <>
+          <line x1={PAD_L} x2={W - PAD_R} y1={toY(budget)} y2={toY(budget)} stroke="#5b9bd5" strokeWidth={1} strokeDasharray="4,2" />
+          <text x={W - PAD_R + 2} y={toY(budget) + 3} fontSize={8} fill="#5b9bd5">Bud</text>
+        </>}
+        {/* PY line */}
+        {py && <>
+          <line x1={PAD_L} x2={W - PAD_R} y1={toY(py)} y2={toY(py)} stroke="rgba(245,237,217,0.35)" strokeWidth={1} />
+          <text x={W - PAD_R + 2} y={toY(py) + 3} fontSize={8} fill="rgba(245,237,217,0.5)">PY</text>
+        </>}
+        {/* Bars */}
+        {months.map((m, i) => {
+          if (m.value == null) return null
+          const bx = barX(i)
+          const by = toY(m.value)
+          const bh = H - PAD_B - by
+          const color = m.forecast ? 'rgba(26,107,85,0.4)' : (budget && m.value >= budget ? '#2a9d6e' : m.value >= (budget || 0) * 0.95 ? 'var(--teal-mid)' : '#e05252')
+          return (
+            <g key={i}>
+              <rect x={bx} y={by} width={barW} height={bh} fill={color} rx={3} />
+              <text x={bx + barW/2} y={by - 3} textAnchor="middle" fontSize={8.5} fill="var(--text-1)" fontWeight={600}>${m.value.toFixed(1)}M</text>
+              <text x={bx + barW/2} y={H - PAD_B + 10} textAnchor="middle" fontSize={8} fill="var(--text-3)">{m.label}</text>
+            </g>
+          )
+        })}
+      </svg>
     </div>
   )
 }
