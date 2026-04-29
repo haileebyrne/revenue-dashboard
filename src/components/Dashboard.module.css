@@ -350,3 +350,8 @@ thead tr:nth-child(2) .th,
 thead tr:nth-child(2) .thEst {
   background: var(--teal);
 }
+
+/* Center group header cells */
+thead tr:first-child .th {
+  text-align: center;
+}
