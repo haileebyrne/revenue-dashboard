@@ -433,7 +433,12 @@ export async function GET() {
         procs26_ytd: (() => {
           const mtd = totals(clients, 'procs26_apr_mtd');
           const prior = totals(clients, 'procs26_jan') + totals(clients, 'procs26_feb') + totals(clients, 'procs26_mar');
-          return mtd ? Math.round(prior + mtd * scaleUpFactor) : null;
+          const rawYtd = prior + mtd * scaleUpFactor;
+          const globalYtd = totalYtdActProcs + totalEomProcs;
+          const globalRaw = allClients.filter((r: any) => !r.is_total).reduce((a: number, r: any) =>
+            a + (r.procs26_jan||0) + (r.procs26_feb||0) + (r.procs26_mar||0) + (r.procs26_apr_mtd||0) * scaleUpFactor, 0);
+          const scale = globalRaw > 0 ? globalYtd / globalRaw : 1;
+          return mtd ? Math.round(rawYtd * scale) : null;
         })(),
         procs25_jan: totals(clients, 'procs25_jan') || null,
         procs25_feb: totals(clients, 'procs25_feb') || null,
