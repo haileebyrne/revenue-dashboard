@@ -635,8 +635,8 @@ function RevenueWaterfall({ data }: { data: any }) {
   const validVals = months.map(m => m.value).filter(v => v != null) as number[]
   if (!validVals.length) return null
 
-  const maxV = Math.max(...validVals, py || 0) * 1.28
-  const W = 620, H = 180, PAD_L = 52, PAD_R = 32, PAD_T = 28, PAD_B = 32
+  const maxV = Math.max(...validVals, py || 0) * 1.25
+  const W = 620, H = 170, PAD_L = 52, PAD_R = 32, PAD_T = 28, PAD_B = 32
   const barW = 56
   const chartW = W - PAD_L - PAD_R
   const chartH = H - PAD_T - PAD_B
@@ -644,22 +644,30 @@ function RevenueWaterfall({ data }: { data: any }) {
   const toY = (v: number) => PAD_T + chartH - (v / maxV) * chartH
   const barX = (i: number) => PAD_L + i * spacing + (spacing - barW) / 2
 
+  const TX = { fill: '#0D2B22', fontFamily: 'DM Sans, sans-serif' }
+  const TX2 = { fill: '#3D6358', fontFamily: 'DM Sans, sans-serif' }
+
   return (
-    <div style={{padding:'12px 24px 8px', background:'transparent'}}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', maxWidth:700, height:H, overflow:'visible'}}>
+    <div style={{
+      margin: '0 24px 0',
+      background: '#ffffff',
+      border: '1px solid #D4E4DF',
+      borderRadius: 10,
+      padding: '16px 16px 10px',
+    }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', maxWidth:700, height:H, overflow:'visible', display:'block'}}>
         {/* Grid lines */}
         {[0.25, 0.5, 0.75, 1].map(t => (
           <line key={t} x1={PAD_L} x2={W - PAD_R}
             y1={toY(maxV * t)} y2={toY(maxV * t)}
-            stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
+            stroke="#D4E4DF" strokeWidth={1} />
         ))}
         {/* Y-axis labels */}
         {[0, 0.5, 1].map(t => {
           const v = maxV * t
           return (
             <text key={t} x={PAD_L - 8} y={toY(v) + 4}
-              textAnchor="end" fontSize={11} fontFamily="sans-serif"
-              style={{fill:"#ffffff"}}>
+              textAnchor="end" fontSize={11} {...TX2}>
               ${Math.round(v)}M
             </text>
           )
@@ -669,12 +677,11 @@ function RevenueWaterfall({ data }: { data: any }) {
           <g>
             <line x1={PAD_L} x2={W - PAD_R - 20}
               y1={toY(py)} y2={toY(py)}
-              stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} strokeDasharray="5,3" />
-            <text x={W - PAD_R - 18} y={toY(py) - 4}
-              fontSize={10} fontFamily="sans-serif" style={{fill:"rgba(255,255,255,0.7)"}}>PY</text>
+              stroke="#7A9E94" strokeWidth={1.5} strokeDasharray="5,3" />
+            <text x={W - PAD_R - 18} y={toY(py) - 4} fontSize={10} {...TX2}>PY</text>
           </g>
         )}
-        {/* Bars + labels */}
+        {/* Bars */}
         {months.map((m, i) => {
           if (m.value == null) return null
           const bx = barX(i)
@@ -683,51 +690,44 @@ function RevenueWaterfall({ data }: { data: any }) {
           const isFcst = (m as any).forecast
           const mBud = m.budget
           const fill = isFcst
-            ? 'rgba(61,189,130,0.35)'
-            : (!mBud || m.value >= mBud) ? '#3dbd82'
-            : m.value >= mBud * 0.95 ? '#2ea870'
-            : '#e05252'
+            ? 'rgba(26,107,85,0.25)'
+            : (!mBud || m.value >= mBud) ? '#1A6B55'
+            : m.value >= mBud * 0.95 ? '#2a9d6e'
+            : '#C0392B'
           return (
             <g key={i}>
-              {/* Bar */}
               <rect x={bx} y={by} width={barW} height={bh} fill={fill} rx={4} />
-              {/* Budget tick */}
               {mBud != null && (
                 <line x1={bx - 6} x2={bx + barW + 6}
                   y1={toY(mBud)} y2={toY(mBud)}
-                  stroke="#64b5f6" strokeWidth={2.5} strokeLinecap="round" />
+                  stroke="#2563eb" strokeWidth={2} strokeLinecap="round" />
               )}
-              {/* Value label — white, above bar, with shadow rect for contrast */}
-              <rect x={bx + barW/2 - 22} y={by - 20} width={44} height={16} fill="transparent" />
-              <text x={bx + barW / 2} y={by - 7}
-                textAnchor="middle" fontSize={11} fontFamily="sans-serif"
-                fontWeight="bold" style={{fill:"#ffffff"}}>
+              <text x={bx + barW / 2} y={by - 6}
+                textAnchor="middle" fontSize={11} fontWeight="600" {...TX}>
                 ${m.value.toFixed(1)}M
               </text>
-              {/* Month label below bar */}
-              <text x={bx + barW / 2} y={H - PAD_B + 16}
-                textAnchor="middle" fontSize={10} fontFamily="sans-serif"
-                style={{fill:"#ffffff"}}>
+              <text x={bx + barW / 2} y={H - PAD_B + 15}
+                textAnchor="middle" fontSize={10} {...TX2}>
                 {m.label}
               </text>
             </g>
           )
         })}
       </svg>
-      {/* Legend row */}
-      <div style={{display:'flex', gap:20, paddingLeft:52, paddingTop:4}}>
+      {/* Legend */}
+      <div style={{display:'flex', gap:20, paddingLeft:52, paddingTop:6}}>
         {([
-          { bg:'#3dbd82',                  line:false, dash:false, label:'Actual' },
-          { bg:'rgba(61,189,130,0.35)',     line:false, dash:false, label:'Forecast' },
-          { bg:'#64b5f6',                  line:true,  dash:false, label:'Budget' },
-          { bg:'rgba(255,255,255,0.5)',     line:true,  dash:true,  label:'Prior Year' },
+          { bg:'#1A6B55',               line:false, dash:false, label:'Actual' },
+          { bg:'rgba(26,107,85,0.25)',   line:false, dash:false, label:'Forecast' },
+          { bg:'#2563eb',               line:true,  dash:false, label:'Budget' },
+          { bg:'#7A9E94',               line:true,  dash:true,  label:'Prior Year' },
         ] as any[]).map(({ bg, line, dash, label }: any) => (
           <div key={label} style={{display:'flex', alignItems:'center', gap:5,
-            fontSize:11, fontFamily:'sans-serif', color:'#ffffff'}}>
+            fontSize:11, color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>
             {!line
               ? <span style={{width:13, height:11, background:bg, borderRadius:2, display:'inline-block', flexShrink:0}} />
               : <span style={{width:18, height:0, display:'inline-block', flexShrink:0,
-                  borderTop: dash ? `2px dashed ${bg}` : `2.5px solid ${bg}`}} />
+                  borderTop: dash ? `2px dashed ${bg}` : `2px solid ${bg}`}} />
             }
             {label}
           </div>
