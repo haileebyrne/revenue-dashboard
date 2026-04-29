@@ -657,8 +657,10 @@ export async function GET() {
         apr_proc_forecast_vs_budget: null,
         ytd_procedures_vs_py: totalPriorProcs ? parseFloat(((totalYtdActProcs + totalEomProcs - totalPriorProcs) / totalPriorProcs * 100).toFixed(1)) : null,
         ytd_revenue_vs_py: (() => {
-          const pyYtdTotal = pyYtdRev + pyYtdOtherRev + (pyEomTotal * scaleDownFactor);
-          return pyYtdTotal ? parseFloat(((ytdRevTotal + (fixedFeeEom + otherFeeEom) * (month - 1) + fixedFeeMtd + otherFeeMtd - pyYtdTotal) / pyYtdTotal * 100).toFixed(1)) : null;
+          // PY YTD = completed months from other_revenues + current month MTD estimate
+          const pyYtdTotal = pyYtdOtherRev + (pyEomTotal * scaleDownFactor);
+          const actYtd = ytdRevTotal + (fixedFeeEom + otherFeeEom) * (month - 1) + fixedFeeMtd + otherFeeMtd;
+          return pyYtdTotal ? parseFloat(((actYtd - pyYtdTotal) / pyYtdTotal * 100).toFixed(1)) : null;
         })(),
       },
       top50: allWithTotal,
