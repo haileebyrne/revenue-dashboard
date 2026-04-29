@@ -451,10 +451,10 @@ export async function GET() {
     let pyOtherFeeRev = 0;    // prior year other fee revenue
     let budgetVarFeeRev = 0;  // budget variable fee monthly
     let budgetFixedFeeRev = 0; // budget uses PEPM in otherFeeRev, not hardcoded fixed fee
-    let budgetOtherFeeRev = 670908;  // budget other fee monthly
+    let budgetOtherFeeRev = 0;
     let okrVarFeeRev = 0;
-    let okrFixedFeeRev = 0; // okr uses PEPM in otherFeeRev
-    let okrOtherFeeRev = 670908;
+    let okrFixedFeeRev = 0;
+    let okrOtherFeeRev = 0;
 
     for (const r of otherRevenues) {
       const rev = parseRevenue(r.amount);
