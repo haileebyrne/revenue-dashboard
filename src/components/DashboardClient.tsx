@@ -679,6 +679,20 @@ function RevenueWaterfall({ data }: { data: any }) {
           )
         })}
       </svg>
+      <div style={{display:'flex', gap:16, paddingLeft:40, paddingTop:4}}>
+        <div style={{fontSize:10, color:'var(--text-3)', display:'flex', alignItems:'center', gap:4}}>
+          <span style={{display:'inline-block',width:14,height:10,background:'var(--teal-mid)',borderRadius:2}}></span>Actual
+        </div>
+        <div style={{fontSize:10, color:'var(--text-3)', display:'flex', alignItems:'center', gap:4}}>
+          <span style={{display:'inline-block',width:14,height:10,background:'rgba(26,107,85,0.4)',borderRadius:2}}></span>Forecast
+        </div>
+        <div style={{fontSize:10, color:'var(--text-3)', display:'flex', alignItems:'center', gap:4}}>
+          <span style={{display:'inline-block',width:14,height:2,background:'#5b9bd5'}}></span>Budget
+        </div>
+        <div style={{fontSize:10, color:'var(--text-3)', display:'flex', alignItems:'center', gap:4}}>
+          <span style={{display:'inline-block',width:14,height:2,background:'rgba(245,237,217,0.3)'}}></span>Prior Year
+        </div>
+      </div>
     </div>
   )
 }
