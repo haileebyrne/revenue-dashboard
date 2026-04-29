@@ -88,7 +88,10 @@ function Filters({ search, onSearch, fee, onFee, carve, onCarve, vintage, onVint
         <option value="">All vintages</option>
         {vintages.map(v => <option key={v}>{v}</option>)}
       </select>
-      <span className={styles.count}>{count} clients</span>
+      <span className={styles.count} style={{display:'flex', alignItems:'center', gap:10}}>
+        {count} clients
+        {onExport && <button onClick={onExport} style={{fontSize:11, padding:'3px 10px', background:'var(--teal)', color:'var(--cream)', border:'none', borderRadius:4, cursor:'pointer', fontWeight:600}}>↓ CSV</button>}
+      </span>
     </div>
   )
 }
