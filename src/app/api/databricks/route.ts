@@ -455,6 +455,7 @@ export async function GET() {
     let okrVarFeeRev = 0, okrFixedFeeRev = 0, okrOtherFeeRev = 0;
     let okrVarProcs = 0, okrFixedProcs = 521;
 
+    let pyYtdOtherRev = 0; // PY YTD total from other_revenues (excl CCD/Infusions)
     for (const r of otherRevenues) {
       const rev = parseRevenue(r.amount);
       const parsed = parseYearMonth(r.revenue_month);
@@ -464,6 +465,11 @@ export async function GET() {
       const cat = String(r.category || '');
       const rt = String(r.revenue_type || '');
       const excl = (rt === 'CCD Fees' || rt === 'Infusions Fees');
+
+      // PY YTD = all completed months Jan to month-1, plus current month MTD estimate
+      if (dt === 'actual' && ry === year - 1 && rm < month && !excl && cat !== 'proc_count') {
+        pyYtdOtherRev += rev;
+      }
 
       if (dt === 'actual' && ry === year - 1 && rm === month) {
         if (cat === 'proc_count' && rt === 'Variable Procs') pyVarProcsEom = rev;
@@ -650,7 +656,10 @@ export async function GET() {
         apr_mtd_procedures_vs_py: null,
         apr_proc_forecast_vs_budget: null,
         ytd_procedures_vs_py: totalPriorProcs ? parseFloat(((totalYtdActProcs + totalEomProcs - totalPriorProcs) / totalPriorProcs * 100).toFixed(1)) : null,
-        ytd_revenue_vs_py: pyYtdRev ? parseFloat(((ytdRevTotal - pyYtdRev) / pyYtdRev * 100).toFixed(1)) : null,
+        ytd_revenue_vs_py: (() => {
+          const pyYtdTotal = pyYtdRev + pyYtdOtherRev + (pyEomTotal * scaleDownFactor);
+          return pyYtdTotal ? parseFloat(((ytdRevTotal + (fixedFeeEom + otherFeeEom) * (month - 1) + fixedFeeMtd + otherFeeMtd - pyYtdTotal) / pyYtdTotal * 100).toFixed(1)) : null;
+        })(),
       },
       top50: allWithTotal,
       top50_only: top50,
