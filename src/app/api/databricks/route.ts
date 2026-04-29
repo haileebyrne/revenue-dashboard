@@ -505,8 +505,13 @@ export async function GET() {
     // pyMonthRev already includes all revenue types from actual_revenues
     // other_revenues has PEPM/other fees which would double-count
     // Just use pyMonthRev directly (actual_revenues has full picture)
-    const pyTotalMtd = toM(pyMonthRev + pyFixedMtd + pyOtherMtd);
-    const pyTotalEom = toM(pyMonthRev + pyFixedMtd + pyOtherMtd);
+    // PY/Budget/OKR use ONLY other_revenues table (not actual_revenues)
+    const pyVarEom = pyVarFeeRev;
+    const pyFixedEom = pyFixedFeeRev;
+    const pyOtherEom = pyOtherFeeRev;
+    const pyEomTotal = pyVarEom + pyFixedEom + pyOtherEom;
+    const pyTotalEom = toM(pyEomTotal);
+    const pyTotalMtd = toM(pyEomTotal * scaleDownFactor);
 
     // Use other_revenues table values directly - don't mix with curBudRev
     // Budget/OKR use Data Sources numbers (PEPM is in otherFeeRev, not fixed fee)
