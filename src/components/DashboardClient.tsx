@@ -11,6 +11,14 @@ function fmtMoney(v: number | null | undefined) {
   if (v == null) return '—'
   return `$${Number(v).toLocaleString()}`
 }
+function revColor(rev: number | null | undefined, budget: number | null | undefined) {
+  if (!rev || !budget) return {}
+  const pct = rev / budget
+  if (pct >= 1.05) return { color: '#2a9d6e', fontWeight: 600 }
+  if (pct >= 0.95) return {}
+  return { color: '#e05252', fontWeight: 600 }
+}
+
 function fmtNum(v: number | null | undefined) {
   if (v == null) return '—'
   return Number(v).toLocaleString()
@@ -140,8 +148,8 @@ function ClientTable({ rows }: { rows: any[] }) {
       <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev26_feb)}</td>
       <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev26_mar)}</td>
       <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev26_apr_mtd)}</td>
-      <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtMoney(r.rev26_apr_est)}</td>
-      <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtMoney(r.rev26_ytd)}</td>
+      <td className={`${styles.td} ${styles.right} ${styles.estCell}`} style={revColor(r.rev26_apr_est, r.ytd_budget)}>{fmtMoney(r.rev26_apr_est)}</td>
+      <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600, ...revColor(r.rev26_ytd, r.ytd_budget)}}>{fmtMoney(r.rev26_ytd)}</td>
       {/* Revenue 25 */}
       <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev25_jan)}</td>
       <td className={`${styles.td} ${styles.right}`}>{fmtMoney(r.rev25_feb)}</td>
