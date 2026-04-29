@@ -659,7 +659,7 @@ function RevenueWaterfall({ data }: { data: any }) {
           return (
             <text key={t} x={PAD_L - 8} y={toY(v) + 4}
               textAnchor="end" fontSize={11} fontFamily="sans-serif"
-              fill="#ffffff">
+              style={{fill:"#ffffff"}}>
               ${Math.round(v)}M
             </text>
           )
@@ -671,7 +671,7 @@ function RevenueWaterfall({ data }: { data: any }) {
               y1={toY(py)} y2={toY(py)}
               stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} strokeDasharray="5,3" />
             <text x={W - PAD_R - 18} y={toY(py) - 4}
-              fontSize={10} fontFamily="sans-serif" fill="rgba(255,255,255,0.7)">PY</text>
+              fontSize={10} fontFamily="sans-serif" style={{fill:"rgba(255,255,255,0.7)"}}>PY</text>
           </g>
         )}
         {/* Bars + labels */}
@@ -701,13 +701,13 @@ function RevenueWaterfall({ data }: { data: any }) {
               <rect x={bx + barW/2 - 22} y={by - 20} width={44} height={16} fill="transparent" />
               <text x={bx + barW / 2} y={by - 7}
                 textAnchor="middle" fontSize={11} fontFamily="sans-serif"
-                fontWeight="bold" fill="#ffffff">
+                fontWeight="bold" style={{fill:"#ffffff"}}>
                 ${m.value.toFixed(1)}M
               </text>
               {/* Month label below bar */}
               <text x={bx + barW / 2} y={H - PAD_B + 16}
                 textAnchor="middle" fontSize={10} fontFamily="sans-serif"
-                fill="#ffffff">
+                style={{fill:"#ffffff"}}>
                 {m.label}
               </text>
             </g>
