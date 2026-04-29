@@ -523,12 +523,13 @@ export async function GET() {
     // Variable fee: procs × implied rev/proc
     const actVarMtd = totalScheduledRev;
     const actVarEom = totalEomRev;
-    const pyVarMtd = budVarProcsMtdVal * pyImpliedRevPerProc;
-    const pyVarEom = pyVarProcsEom * pyImpliedRevPerProc;
-    const budVarMtd = budVarProcsMtdVal * budImpliedRevPerProc;
-    const budVarEomRev = budVarProcsEom * budImpliedRevPerProc;
-    const okrVarMtd = okrVarProcsMtdVal * okrImpliedRevPerProc;
-    const okrVarEomRev = okrVarProcsEom * okrImpliedRevPerProc;
+    // Variable fee MTD = EOM × scaleDown (EOM already from other_revenues table)
+    const pyVarEom = pyVarFeeRev;
+    const pyVarMtd = pyVarEom * scaleDownFactor;
+    const budVarEomRev = budgetVarFeeRev || curBudRev;
+    const budVarMtd = budVarEomRev * scaleDownFactor;
+    const okrVarEomRev = okrVarFeeRev || (budVarEomRev * 1.1);
+    const okrVarMtd = okrVarEomRev * scaleDownFactor;
 
     // Fixed fee: actual fixed procs × implied PEPM per fixed proc
     const fixedFeeMtd = fixedFeeEom * scaleDownFactor;
@@ -555,11 +556,11 @@ export async function GET() {
 
     // ─── Proc count totals ───
     const pyTotalProcs = Math.round((pyVarProcsEom || 0) + (pyFixedProcsEom || 0));
-    const pyTotalProcsMtd = Math.round(budVarProcsMtdVal + actFixedProcsMtd);
+    const pyTotalProcsMtd = Math.round(pyTotalProcs * scaleDownFactor);
     const budgetTotalProcs = Math.round(budVarProcsEom + budFixedProcsEom);
-    const budgetTotalProcsMtd = Math.round(budVarProcsMtdVal + budFixedProcsMtdVal);
+    const budgetTotalProcsMtd = Math.round(budgetTotalProcs * scaleDownFactor);
     const okrTotalProcs = Math.round(okrVarProcsEom + okrFixedProcsEom);
-    const okrTotalProcsMtd = Math.round(okrVarProcsMtdVal + okrFixedProcsMtdVal);
+    const okrTotalProcsMtd = Math.round(okrTotalProcs * scaleDownFactor);
 
     const varRevBudget = Math.round(totalScheduledRev - curBudRev);
     const varRevPY = Math.round(totalScheduledRev - pyMonthRev);
