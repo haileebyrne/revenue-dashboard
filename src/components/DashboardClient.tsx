@@ -281,7 +281,7 @@ function ClientTable({ rows }: { rows: any[] }) {
   const sorted = sortRows(filtered as unknown as Record<string, unknown>[], sort) as unknown as any[]
 
   const renderRow = (r: any, key: string | number, isTot = false) => (
-    <tr key={key} className={`${styles.row} ${isTot ? styles.totalRow : ''}`}>
+    <tr key={key} className={`${styles.row} ${isTot ? styles.totalRow : ''}`} onClick={() => { if (!isTot) setSelectedClient(r) }} style={{cursor: isTot ? 'default' : 'pointer'}}>
       <td className={`${styles.td} ${styles.clientName}`} title={r.client_name}>{r.client_name}</td>
       <td className={styles.td}>{isTot ? '—' : (r.vintage ?? '—')}</td>
       <td className={styles.td}>{isTot ? '—' : r.fee_structure}</td>
