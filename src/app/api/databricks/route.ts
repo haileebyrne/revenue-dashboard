@@ -438,10 +438,16 @@ export async function GET() {
 
     // MTD Performance data
     // ─── Hardcoded actuals (from financials, held flat) ───
-    const fixedFeeEom = 3172352;   // actual fixed fee EOM
-    const otherFeeEom = 670908;    // actual other fee EOM
+    const fixedFeeEom = 3172352;
+    const otherFeeEom = 670908;
 
-    // ─── Aggregate other_revenues by data_type ───
+    // ─── Implied rev per proc from Data Sources ───
+    const pyImpliedRevPerProc   = 5547.32;   // Data Sources row 8, Apr-25
+    const budImpliedRevPerProc  = 5114.71;   // Data Sources row 25, Apr-26
+    const okrImpliedRevPerProc  = 5114.71;   // Data Sources row 42, Apr-26 (same as budget)
+    const pyPepmPerFixedProc    = 1651035.63 / 482; // Data Sources F11/F5 = Apr-25 PEPM / fixed procs
+
+    // ─── Aggregate other_revenues ───
     let pyVarFeeRev = 0, pyFixedFeeRev = 0, pyOtherFeeRev = 0;
     let pyVarProcsEom = 0, pyFixedProcsEom = 0;
     let budgetVarFeeRev = 0, budgetFixedFeeRev = 0, budgetOtherFeeRev = 0;
@@ -457,82 +463,104 @@ export async function GET() {
       const dt = String(r.data_type || '');
       const cat = String(r.category || '');
       const rt = String(r.revenue_type || '');
-      const excludeFromTotal = (rt === 'CCD Fees' || rt === 'Infusions Fees');
+      const excl = (rt === 'CCD Fees' || rt === 'Infusions Fees');
 
-      // PY actuals (prior year same month, excl CCD/Infusions)
       if (dt === 'actual' && ry === year - 1 && rm === month) {
         if (cat === 'proc_count' && rt === 'Variable Procs') pyVarProcsEom = rev;
         else if (cat === 'proc_count' && rt === 'Fixed Procs') pyFixedProcsEom = rev;
-        else if (!excludeFromTotal) {
-          if (cat === 'variable_fee') pyVarFeeRev += rev;
-          else if (cat === 'fixed_fee') pyFixedFeeRev += rev;
-          else pyOtherFeeRev += rev;
-        }
+        else if (!excl && cat === 'variable_fee') pyVarFeeRev += rev;
+        else if (!excl && cat === 'fixed_fee') pyFixedFeeRev += rev;
+        else if (!excl) pyOtherFeeRev += rev;
       }
-      // Budget (excl CCD/Infusions)
       if (dt === 'budget' && ry === year && rm === month) {
         if (cat === 'proc_count' && rt === 'Variable Procs') budgetVarProcs = rev;
         else if (cat === 'proc_count' && rt === 'Fixed Procs') budgetFixedProcs = rev;
-        else if (!excludeFromTotal) {
-          if (cat === 'variable_fee') budgetVarFeeRev += rev;
-          else if (cat === 'fixed_fee') budgetFixedFeeRev += rev;
-          else budgetOtherFeeRev += rev;
-        }
+        else if (!excl && cat === 'variable_fee') budgetVarFeeRev += rev;
+        else if (!excl && cat === 'fixed_fee') budgetFixedFeeRev += rev;
+        else if (!excl) budgetOtherFeeRev += rev;
       }
-      // OKR (excl CCD/Infusions)
       if (dt === 'okr' && ry === year && rm === month) {
         if (cat === 'proc_count' && rt === 'Variable Procs') okrVarProcs = rev;
         else if (cat === 'proc_count' && rt === 'Fixed Procs') okrFixedProcs = rev;
-        else if (!excludeFromTotal) {
-          if (cat === 'variable_fee') okrVarFeeRev += rev;
-          else if (cat === 'fixed_fee') okrFixedFeeRev += rev;
-          else okrOtherFeeRev += rev;
-        }
+        else if (!excl && cat === 'variable_fee') okrVarFeeRev += rev;
+        else if (!excl && cat === 'fixed_fee') okrFixedFeeRev += rev;
+        else if (!excl) okrOtherFeeRev += rev;
       }
     }
 
-    // ─── Scale factors ───
     const scaleDownFactor = curveAtToday;
     const toM = (v: number) => parseFloat((v / 1_000_000).toFixed(2));
 
-    // ─── Actual revenue (member_surgeries + hardcoded fixed/other) ───
-    const actVarMtd = totalScheduledRev;
-    const actVarEom = totalEomRev;
-    const fixedFeeMtd = fixedFeeEom * scaleDownFactor;
-    const otherFeeMtd = otherFeeEom * scaleDownFactor;
-    const actTotalMtd = toM(actVarMtd + fixedFeeMtd + otherFeeMtd);
-    const actTotalEom = toM(actVarEom + fixedFeeEom + otherFeeEom);
-
-    // ─── PY (from other_revenues, excl CCD/Infusions, full month) ───
-    const pyEomTotal = pyVarFeeRev + pyFixedFeeRev + pyOtherFeeRev;
-    const pyTotalEom = toM(pyEomTotal);
-    const pyTotalMtd = toM(pyEomTotal * scaleDownFactor);
-
-    // ─── Budget (from other_revenues, excl CCD/Infusions) ───
-    const budVarRev = budgetVarFeeRev || curBudRev;
-    const budgetEomTotal = budVarRev + budgetFixedFeeRev + budgetOtherFeeRev;
-    const budgetTotalEom = toM(budgetEomTotal);
-    const budgetTotalMtd = toM(budgetEomTotal * scaleDownFactor);
-
-    // ─── OKR (from other_revenues, excl CCD/Infusions) ───
-    const okrVarRev = okrVarFeeRev || (budVarRev * 1.1);
-    const okrEomTotal = okrVarRev + okrFixedFeeRev + okrOtherFeeRev;
-    const okrTotalEom = toM(okrEomTotal);
-    const okrTotalMtd = toM(okrEomTotal * scaleDownFactor);
-
-    // ─── Procedure counts ───
-    const pyTotalProcs = Math.round((pyVarProcsEom || 0) + (pyFixedProcsEom || 0));
-    const budVarProcs = budgetVarProcs || 2471;
-    const budFixedProcs = budgetFixedProcs || 521;
-    const budgetTotalProcs = Math.round(budVarProcs + budFixedProcs);
-    const budgetTotalProcsEom = budgetTotalProcs;
-    const okrVar = okrVarProcs || 2959;
-    const okrFixedScaled = budVarProcs > 0 ? Math.round(budFixedProcs * (okrVar / budVarProcs)) : budFixedProcs;
-    const okrTotalProcs = Math.round(okrVar + okrFixedScaled);
+    // ─── Actual proc counts (from member_surgeries) ───
+    const actVarProcsMtd = Object.values(surgByName)
+      .filter((s: any) => s.fee_structure !== 'Fixed')
+      .reduce((a: number, s: any) => a + s.scheduled, 0);
+    const actFixedProcsMtd = Object.values(surgByName)
+      .filter((s: any) => s.fee_structure === 'Fixed')
+      .reduce((a: number, s: any) => a + s.scheduled, 0);
     const actTotalProcs = totalScheduledProcs;
     const actTotalProcsEom = totalEomProcs;
 
-    // ─── Legacy fields ───
+    // ─── Budget/OKR actual scheduled proc counts ───
+    // Budget var procs MTD = actual scheduled var procs (same pool, budget clients)
+    const budVarProcsMtdVal = actVarProcsMtd;
+    const budFixedProcsMtdVal = actFixedProcsMtd;
+    // OKR var procs MTD = Budget var procs MTD × (OKR var EOM / Budget var EOM)
+    const budVarProcsEom = budgetVarProcs || 2471;
+    const budFixedProcsEom = budgetFixedProcs || 521;
+    const okrVarProcsEom = okrVarProcs || 2959;
+    const okrFixedProcsEom = budVarProcsEom > 0
+      ? Math.round(budFixedProcsEom * (okrVarProcsEom / budVarProcsEom))
+      : budFixedProcsEom;
+    const okrVarProcsMtdVal = budVarProcsEom > 0
+      ? Math.round(budVarProcsMtdVal * (okrVarProcsEom / budVarProcsEom))
+      : Math.round(okrVarProcsEom * scaleDownFactor);
+    const okrFixedProcsMtdVal = okrFixedProcsEom > 0
+      ? Math.round(okrFixedProcsEom * (budFixedProcsMtdVal / budFixedProcsEom))
+      : Math.round(okrFixedProcsEom * scaleDownFactor);
+
+    // ─── Revenue calculations ───
+    // Variable fee: procs × implied rev/proc
+    const actVarMtd = totalScheduledRev;
+    const actVarEom = totalEomRev;
+    const pyVarMtd = budVarProcsMtdVal * pyImpliedRevPerProc;
+    const pyVarEom = pyVarProcsEom * pyImpliedRevPerProc;
+    const budVarMtd = budVarProcsMtdVal * budImpliedRevPerProc;
+    const budVarEomRev = budVarProcsEom * budImpliedRevPerProc;
+    const okrVarMtd = okrVarProcsMtdVal * okrImpliedRevPerProc;
+    const okrVarEomRev = okrVarProcsEom * okrImpliedRevPerProc;
+
+    // Fixed fee: actual fixed procs × implied PEPM per fixed proc
+    const fixedFeeMtd = fixedFeeEom * scaleDownFactor;
+    const pyFixedMtd = actFixedProcsMtd * pyPepmPerFixedProc;
+    const pyFixedEomRev = pyFixedProcsEom * pyPepmPerFixedProc;
+    const budFixedMtd = budgetFixedFeeRev * scaleDownFactor;
+    const okrFixedMtd = okrFixedFeeRev * scaleDownFactor;
+
+    // Other fee: EOM × scaleDown
+    const otherFeeMtd = otherFeeEom * scaleDownFactor;
+    const pyOtherMtd = pyOtherFeeRev * scaleDownFactor;
+    const budOtherMtd = budgetOtherFeeRev * scaleDownFactor;
+    const okrOtherMtd = okrOtherFeeRev * scaleDownFactor;
+
+    // Totals
+    const actTotalMtd = toM(actVarMtd + fixedFeeMtd + otherFeeMtd);
+    const actTotalEom = toM(actVarEom + fixedFeeEom + otherFeeEom);
+    const pyTotalMtd = toM(pyVarMtd + pyFixedMtd + pyOtherMtd);
+    const pyTotalEom = toM(pyVarEom + pyFixedEomRev + pyOtherFeeRev);
+    const budgetTotalMtd = toM(budVarMtd + budFixedMtd + budOtherMtd);
+    const budgetTotalEom = toM(budVarEomRev + budgetFixedFeeRev + budgetOtherFeeRev);
+    const okrTotalMtd = toM(okrVarMtd + okrFixedMtd + okrOtherMtd);
+    const okrTotalEom = toM(okrVarEomRev + okrFixedFeeRev + okrOtherFeeRev);
+
+    // ─── Proc count totals ───
+    const pyTotalProcs = Math.round((pyVarProcsEom || 0) + (pyFixedProcsEom || 0));
+    const pyTotalProcsMtd = Math.round(budVarProcsMtdVal + actFixedProcsMtd);
+    const budgetTotalProcs = Math.round(budVarProcsEom + budFixedProcsEom);
+    const budgetTotalProcsMtd = Math.round(budVarProcsMtdVal + budFixedProcsMtdVal);
+    const okrTotalProcs = Math.round(okrVarProcsEom + okrFixedProcsEom);
+    const okrTotalProcsMtd = Math.round(okrVarProcsMtdVal + okrFixedProcsMtdVal);
+
     const varRevBudget = Math.round(totalScheduledRev - curBudRev);
     const varRevPY = Math.round(totalScheduledRev - pyMonthRev);
     const varEomBudget = Math.round(totalEomRev - curBudRev);
@@ -566,24 +594,24 @@ export async function GET() {
       procedures: {
         actual_mtd:        actTotalProcs,
         actual_eom:        actTotalProcsEom,
-        py_mtd:            pyTotalProcs ? Math.round(pyTotalProcs * scaleDownFactor) : null,
+        py_mtd:            pyTotalProcsMtd || null,
         py_eom:            pyTotalProcs || null,
-        budget_mtd:        budgetTotalProcs ? Math.round(budgetTotalProcs * scaleDownFactor) : null,
+        budget_mtd:        budgetTotalProcsMtd || null,
         budget_eom:        budgetTotalProcs || null,
-        okr_mtd:           okrTotalProcs ? Math.round(budgetTotalProcs ? (Math.round(budgetTotalProcs * scaleDownFactor) * okrTotalProcs / budgetTotalProcs) : okrTotalProcs * scaleDownFactor) : null,
+        okr_mtd:           okrTotalProcsMtd || null,
         okr_eom:           okrTotalProcs || null,
-        var_vs_py_mtd:     pyTotalProcs ? actTotalProcs - pyTotalProcs : null,
+        var_vs_py_mtd:     pyTotalProcsMtd ? actTotalProcs - pyTotalProcsMtd : null,
         var_vs_py_eom:     pyTotalProcs ? actTotalProcsEom - pyTotalProcs : null,
-        var_vs_budget_mtd: budgetTotalProcs ? actTotalProcs - budgetTotalProcs : null,
-        var_vs_budget_eom: budgetTotalProcs ? actTotalProcsEom - budgetTotalProcsEom : null,
-        var_vs_okr_mtd:    okrTotalProcs ? actTotalProcs - okrTotalProcs : null,
-        var_vs_okr_eom:    okrTotalProcs ? actTotalProcsEom - Math.round(okrTotalProcs / scaleDownFactor) : null,
-        pct_of_py_mtd:     pyTotalProcs ? parseFloat((actTotalProcs / pyTotalProcs).toFixed(3)) : null,
+        var_vs_budget_mtd: budgetTotalProcsMtd ? actTotalProcs - budgetTotalProcsMtd : null,
+        var_vs_budget_eom: budgetTotalProcs ? actTotalProcsEom - budgetTotalProcs : null,
+        var_vs_okr_mtd:    okrTotalProcsMtd ? actTotalProcs - okrTotalProcsMtd : null,
+        var_vs_okr_eom:    okrTotalProcs ? actTotalProcsEom - okrTotalProcs : null,
+        pct_of_py_mtd:     pyTotalProcsMtd ? parseFloat((actTotalProcs / pyTotalProcsMtd).toFixed(3)) : null,
         pct_of_py_eom:     pyTotalProcs ? parseFloat((actTotalProcsEom / pyTotalProcs).toFixed(3)) : null,
-        pct_of_budget_mtd: budgetTotalProcs ? parseFloat((actTotalProcs / budgetTotalProcs).toFixed(3)) : null,
-        pct_of_budget_eom: budgetTotalProcs ? parseFloat((actTotalProcsEom / budgetTotalProcsEom).toFixed(3)) : null,
-        pct_of_okr_mtd:    okrTotalProcs ? parseFloat((actTotalProcs / okrTotalProcs).toFixed(3)) : null,
-        pct_of_okr_eom:    okrTotalProcs ? parseFloat((actTotalProcsEom / Math.round(okrTotalProcs / scaleDownFactor)).toFixed(3)) : null,
+        pct_of_budget_mtd: budgetTotalProcsMtd ? parseFloat((actTotalProcs / budgetTotalProcsMtd).toFixed(3)) : null,
+        pct_of_budget_eom: budgetTotalProcs ? parseFloat((actTotalProcsEom / budgetTotalProcs).toFixed(3)) : null,
+        pct_of_okr_mtd:    okrTotalProcsMtd ? parseFloat((actTotalProcs / okrTotalProcsMtd).toFixed(3)) : null,
+        pct_of_okr_eom:    okrTotalProcs ? parseFloat((actTotalProcsEom / okrTotalProcs).toFixed(3)) : null,
       },
       apr_mtd: Math.round(actVarMtd + fixedFeeMtd + otherFeeMtd),
       apr_eom_fcst: Math.round(actVarEom + fixedFeeEom + otherFeeEom),
