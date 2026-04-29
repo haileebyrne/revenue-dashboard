@@ -287,13 +287,13 @@ function MtdPerformance({ data }: { data: any }) {
       <table className={styles.table}>
         <thead>
           <tr>
-            <th className={styles.th} style={{textAlign:'left', width:140}}>Total Surgery Care {isRev ? 'Revenue ($mm)' : 'Procedure Count'}</th>
-            <th className={`${styles.th} ${styles.right}`}>{dayLabel} MTD</th>
-            <th className={`${styles.th} ${styles.right}`}>{mLabel}. Month Fcst.</th>
-            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>MTD Var</th>
-            <th className={`${styles.th} ${styles.right}`}>Fcst Var</th>
-            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>MTD %</th>
-            <th className={`${styles.th} ${styles.right}`}>Fcst %</th>
+            <th className={styles.th} style={{textAlign:'left', width:120}}>Total Surgery Care {isRev ? 'Revenue ($mm)' : 'Procedure Count'}</th>
+            <th className={`${styles.th} ${styles.right}`} style={{width:90}}>{dayLabel} MTD</th>
+            <th className={`${styles.th} ${styles.right}`} style={{width:90}}>{mLabel}. Fcst.</th>
+            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)', width:80}}>MTD Var</th>
+            <th className={`${styles.th} ${styles.right}`} style={{width:80}}>Fcst Var</th>
+            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)', width:70}}>MTD %</th>
+            <th className={`${styles.th} ${styles.right}`} style={{width:70}}>Fcst %</th>
           </tr>
         </thead>
         <tbody>
