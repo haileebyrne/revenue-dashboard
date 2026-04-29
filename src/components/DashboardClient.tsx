@@ -608,8 +608,8 @@ function TrendChart({ data }: { data: any }) {
         ) : null)}
       </svg>
       <div style={{fontSize:11, color:'var(--text-3)', whiteSpace:'nowrap', lineHeight:2}}>
-        <div><span style={{display:'inline-block',width:12,height:2,background:'var(--teal-mid)',marginRight:6,verticalAlign:'middle'}}></span>Actual</div>
-        <div><span style={{display:'inline-block',width:12,height:2,background:'#5b9bd5',marginRight:6,verticalAlign:'middle',borderTop:'2px dashed #5b9bd5'}}></span>Budget</div>
+        <div><span style={{display:'inline-block',width:12,height:8,background:'var(--teal-mid)',marginRight:6,verticalAlign:'middle',borderRadius:2}}></span>Actual / Fcst</div>
+        <div><span style={{display:'inline-block',width:12,height:2,background:'#5b9bd5',marginRight:6,verticalAlign:'middle'}}></span>Budget</div>
         <div><span style={{display:'inline-block',width:12,height:2,background:'rgba(245,237,217,0.3)',marginRight:6,verticalAlign:'middle'}}></span>PY</div>
       </div>
     </div>
@@ -668,6 +668,7 @@ function RevenueWaterfall({ data }: { data: any }) {
           return (
             <g key={i}>
               <rect x={bx} y={by} width={barW} height={bh} fill={color} rx={3} />
+              {(m as any).budget && <line x1={bx} x2={bx+barW} y1={toY((m as any).budget)} y2={toY((m as any).budget)} stroke="#5b9bd5" strokeWidth={2} />}
               <text x={bx + barW/2} y={by - 3} textAnchor="middle" fontSize={8.5} fill="var(--text-1)" fontWeight={600}>${m.value.toFixed(1)}M</text>
               <text x={bx + barW/2} y={H - PAD_B + 10} textAnchor="middle" fontSize={8} fill="var(--text-3)">{m.label}</text>
             </g>
