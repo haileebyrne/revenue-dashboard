@@ -571,7 +571,12 @@ function FunnelTab({ data }: { data: any }) {
       .catch(e => { setError(e.message); setLoading(false) })
   }, [])
 
-  if (loading) return <div style={{padding:'32px 24px', color:'#3D6358', fontFamily:'DM Sans, sans-serif', fontSize:14}}>Loading funnel data...</div>
+  if (loading) return (
+    <div style={{padding:'32px 24px', fontFamily:'DM Sans, sans-serif'}}>
+      <div style={{color:'#3D6358', fontSize:14, marginBottom:8}}>Loading funnel data...</div>
+      <div style={{color:'#7A9E94', fontSize:12}}>This may take 30–60 seconds on first load while the data warehouse warms up.</div>
+    </div>
+  )
   if (error)   return <div style={{padding:'32px 24px', color:'#C0392B', fontFamily:'DM Sans, sans-serif', fontSize:14}}>Error: {error}</div>
   if (!rows.length) return <div style={{padding:'32px 24px', color:'#3D6358'}}>No funnel data available</div>
 
