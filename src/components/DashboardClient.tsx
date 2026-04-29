@@ -371,8 +371,10 @@ function ClientTable({ rows }: { rows: any[] }) {
         </thead>
         <tbody>
           {sorted.map((r, i) => renderRow(r, i))}
-          {totals.map((r, i) => renderRow(r, `tot-${i}`, true))}
         </tbody>
+        <tfoot style={{position:'sticky', bottom:0, zIndex:2}}>
+          {totals.map((r, i) => renderRow(r, `tot-${i}`, true))}
+        </tfoot>
       </table></div></div>
     </>
   )
