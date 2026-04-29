@@ -38,7 +38,7 @@ ORDER BY yyyy_mm
 
 export async function GET() {
   try {
-    const data = await queryDatabricks(QUERY, 'funnel');
+    const data = await queryDatabricks(QUERY, 'funnel-v2');
     return NextResponse.json({ data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
