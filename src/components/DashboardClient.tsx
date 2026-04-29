@@ -888,12 +888,12 @@ function Top5Clients({ data }: { data: any }) {
   const rows = ((data.top50 || []) as any[])
     .filter((r: any) => !r.is_total && r.client_name !== 'Total Surgery Care Revenue')
     .sort((a: any, b: any) => (b.rev26_ytd ?? 0) - (a.rev26_ytd ?? 0))
-    .slice(0, 5)
+    .slice(0, 7)
 
   if (!rows.length) return null
 
   const maxVal = Math.max(...rows.map((r: any) => Math.max(r.rev26_ytd ?? 0, r.rev25_ytd ?? 0))) * 1.15
-  const W = 300, ROW_H = 28, PAD_L = 110, PAD_R = 52, PAD_T = 8, BAR_H = 10
+  const W = 420, ROW_H = 30, PAD_L = 130, PAD_R = 60, PAD_T = 8, BAR_H = 11
   const H = PAD_T + rows.length * ROW_H + 24
   const toW = (v: number) => v == null ? 0 : Math.max(0, (v / maxVal) * (W - PAD_L - PAD_R))
   const rowY = (i: number) => PAD_T + i * ROW_H
@@ -908,7 +908,7 @@ function Top5Clients({ data }: { data: any }) {
       verticalAlign: 'top',
     }}>
       <div style={{fontSize:11, fontWeight:600, color:'#3D6358', marginBottom:10, fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em'}}>Top 5 Clients — YTD Revenue</div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{width:W, height:H, display:'block', overflow:'visible'}}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', height:H, display:'block', overflow:'visible'}}>
         {rows.map((r: any, i: number) => {
           const w26 = toW(r.rev26_ytd ?? 0)
           const w25 = toW(r.rev25_ytd ?? 0)
