@@ -383,6 +383,34 @@ export async function GET() {
       is_total: true,
     };
 
+    // Merge AT&T sub-clients into one combined row
+    const attCodes = ['AT&TACTMAN', 'AT&TBARGAIN', 'AT&TPRE65RET'];
+    const attRows = allClients.filter((r: any) => attCodes.includes(r.client_code) || attCodes.some((c: string) => r.client_name?.includes('AT&T')));
+    const nonAttClients = allClients.filter((r: any) => !attCodes.includes(r.client_code) && !attCodes.some((c: string) => r.client_name?.includes('AT&T')));
+
+    if (attRows.length > 1) {
+      const mergedAtt: any = {
+        client_name: 'AT&T',
+        client_code: 'AT&T',
+        vintage: attRows[0]?.vintage || 2024,
+        fee_structure: attRows[0]?.fee_structure || '% of Savings',
+        carveout: attRows[0]?.carveout || 'Multi Carve-Out',
+        ees: attRows.reduce((a: number, r: any) => a + (r.ees || 0), 0),
+        is_total: false,
+      };
+      // Sum all numeric fields
+      const numFields = ['procs26_jan','procs26_feb','procs26_mar','procs26_apr_mtd','procs26_apr_est','procs26_ytd',
+        'procs25_jan','procs25_feb','procs25_mar','procs25_apr','procs25_ytd',
+        'rev26_jan','rev26_feb','rev26_mar','rev26_apr_mtd','rev26_apr_est','rev26_ytd',
+        'rev25_jan','rev25_feb','rev25_mar','rev25_apr','rev25_ytd',
+        'ytd_budget','ytd_revenue','avg_rev_per_proc'];
+      for (const f of numFields) {
+        const vals = attRows.map((r: any) => r[f]).filter((v: any) => v != null && v !== 0);
+        mergedAtt[f] = vals.length > 0 ? vals.reduce((a: number, v: number) => a + v, 0) : null;
+      }
+      allClients.splice(0, allClients.length, ...nonAttClients, mergedAtt);
+    }
+
     const top50 = [...allClients]
       .filter((r: any) => r.fee_structure !== 'Fixed')
       .sort((a: any, b: any) => (fullYearBudByName[b.client_name] || 0) - (fullYearBudByName[a.client_name] || 0))
