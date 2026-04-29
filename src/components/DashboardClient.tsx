@@ -635,103 +635,99 @@ function RevenueWaterfall({ data }: { data: any }) {
   const validVals = months.map(m => m.value).filter(v => v != null) as number[]
   if (!validVals.length) return null
 
-  const maxV = Math.max(...validVals, py || 0) * 1.22
-  const W = 600, H = 150, PAD_L = 50, PAD_R = 32, PAD_T = 18, PAD_B = 28
-  const barW = 54
+  const maxV = Math.max(...validVals, py || 0) * 1.28
+  const W = 620, H = 180, PAD_L = 52, PAD_R = 32, PAD_T = 28, PAD_B = 32
+  const barW = 56
   const chartW = W - PAD_L - PAD_R
   const chartH = H - PAD_T - PAD_B
   const spacing = chartW / months.length
   const toY = (v: number) => PAD_T + chartH - (v / maxV) * chartH
   const barX = (i: number) => PAD_L + i * spacing + (spacing - barW) / 2
 
-  // Visible colors against dark background
-  const COLOR_ABOVE    = '#3dbd82'   // bright teal-green — at/above budget
-  const COLOR_NEAR     = '#2ea870'   // mid green — within 5%
-  const COLOR_BELOW    = '#e05252'   // red — below 95%
-  const COLOR_NONE     = '#3dbd82'   // bright green — no budget
-  const COLOR_FORECAST = 'rgba(61,189,130,0.38)'  // transparent teal
-  const COLOR_BUDGET   = '#64b5f6'   // bright blue
-  const COLOR_PY       = 'rgba(245,237,217,0.55)'
-
-  const barColor = (m: typeof months[0]) => {
-    if (m.forecast) return COLOR_FORECAST
-    if (!m.budget) return COLOR_NONE
-    if (m.value! >= m.budget) return COLOR_ABOVE
-    if (m.value! >= m.budget * 0.95) return COLOR_NEAR
-    return COLOR_BELOW
-  }
-
   return (
-    <div style={{padding:'10px 24px 4px', background:'transparent'}}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', maxWidth:700, height:H}}>
-        {/* Subtle grid */}
+    <div style={{padding:'12px 24px 8px', background:'transparent'}}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', maxWidth:700, height:H, overflow:'visible'}}>
+        {/* Grid lines */}
         {[0.25, 0.5, 0.75, 1].map(t => (
-          <line key={t} x1={PAD_L} x2={W - PAD_R} y1={toY(maxV * t)} y2={toY(maxV * t)}
-            stroke="rgba(245,237,217,0.1)" strokeWidth={1} />
+          <line key={t} x1={PAD_L} x2={W - PAD_R}
+            y1={toY(maxV * t)} y2={toY(maxV * t)}
+            stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
         ))}
-        {/* Y-axis labels — bright enough to see */}
+        {/* Y-axis labels */}
         {[0, 0.5, 1].map(t => {
           const v = maxV * t
           return (
-            <text key={t} x={PAD_L - 6} y={toY(v) + 4} textAnchor="end"
-              fontSize={9} fill="rgba(245,237,217,0.7)">
-              ${v.toFixed(0)}M
+            <text key={t} x={PAD_L - 8} y={toY(v) + 4}
+              textAnchor="end" fontSize={11} fontFamily="sans-serif"
+              fill="#ffffff">
+              ${Math.round(v)}M
             </text>
           )
         })}
         {/* PY dashed line */}
         {py && (
           <g>
-            <line x1={PAD_L} x2={W - PAD_R - 18} y1={toY(py)} y2={toY(py)}
-              stroke={COLOR_PY} strokeWidth={1.5} strokeDasharray="4,3" />
-            <text x={W - PAD_R - 16} y={toY(py) - 3} fontSize={8.5} fill="rgba(245,237,217,0.65)">PY</text>
+            <line x1={PAD_L} x2={W - PAD_R - 20}
+              y1={toY(py)} y2={toY(py)}
+              stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} strokeDasharray="5,3" />
+            <text x={W - PAD_R - 18} y={toY(py) - 4}
+              fontSize={10} fontFamily="sans-serif" fill="rgba(255,255,255,0.7)">PY</text>
           </g>
         )}
-        {/* Bars */}
+        {/* Bars + labels */}
         {months.map((m, i) => {
           if (m.value == null) return null
           const bx = barX(i)
           const by = toY(m.value)
-          const bh = Math.max(2, H - PAD_B - by)
+          const bh = Math.max(4, H - PAD_B - by)
+          const isFcst = (m as any).forecast
+          const mBud = m.budget
+          const fill = isFcst
+            ? 'rgba(61,189,130,0.35)'
+            : (!mBud || m.value >= mBud) ? '#3dbd82'
+            : m.value >= mBud * 0.95 ? '#2ea870'
+            : '#e05252'
           return (
             <g key={i}>
-              <rect x={bx} y={by} width={barW} height={bh} fill={barColor(m)} rx={3} />
-              {/* Budget tick — wider than bar, bright */}
-              {m.budget != null && (
-                <line
-                  x1={bx - 5} x2={bx + barW + 5}
-                  y1={toY(m.budget)} y2={toY(m.budget)}
-                  stroke={COLOR_BUDGET} strokeWidth={2} strokeLinecap="round"
-                />
+              {/* Bar */}
+              <rect x={bx} y={by} width={barW} height={bh} fill={fill} rx={4} />
+              {/* Budget tick */}
+              {mBud != null && (
+                <line x1={bx - 6} x2={bx + barW + 6}
+                  y1={toY(mBud)} y2={toY(mBud)}
+                  stroke="#64b5f6" strokeWidth={2.5} strokeLinecap="round" />
               )}
-              {/* Value label — bright white */}
-              <text x={bx + barW / 2} y={by - 5} textAnchor="middle"
-                fontSize={9.5} fill="#ffffff" fontWeight={700}>
+              {/* Value label — white, above bar, with shadow rect for contrast */}
+              <rect x={bx + barW/2 - 22} y={by - 20} width={44} height={16} fill="transparent" />
+              <text x={bx + barW / 2} y={by - 7}
+                textAnchor="middle" fontSize={11} fontFamily="sans-serif"
+                fontWeight="bold" fill="#ffffff">
                 ${m.value.toFixed(1)}M
               </text>
-              {/* Month label */}
-              <text x={bx + barW / 2} y={H - PAD_B + 13} textAnchor="middle"
-                fontSize={9} fill="rgba(245,237,217,0.75)">
+              {/* Month label below bar */}
+              <text x={bx + barW / 2} y={H - PAD_B + 16}
+                textAnchor="middle" fontSize={10} fontFamily="sans-serif"
+                fill="#ffffff">
                 {m.label}
               </text>
             </g>
           )
         })}
       </svg>
-      {/* Legend */}
-      <div style={{display:'flex', gap:20, paddingLeft:50, paddingTop:2, flexWrap:'wrap'}}>
+      {/* Legend row */}
+      <div style={{display:'flex', gap:20, paddingLeft:52, paddingTop:4}}>
         {([
-          { color: '#3dbd82',                   type: 'bar',  label: 'Actual' },
-          { color: 'rgba(61,189,130,0.38)',      type: 'bar',  label: 'Forecast' },
-          { color: '#64b5f6',                   type: 'line', label: 'Budget' },
-          { color: 'rgba(245,237,217,0.55)',     type: 'dash', label: 'Prior Year' },
-        ] as {color:string,type:string,label:string}[]).map(({ color, type, label }) => (
-          <div key={label} style={{fontSize:11, color:'rgba(245,237,217,0.75)', display:'flex', alignItems:'center', gap:5}}>
-            {type === 'bar'
-              ? <span style={{display:'inline-block', width:13, height:11, background:color, borderRadius:2, flexShrink:0}} />
-              : type === 'line'
-              ? <span style={{display:'inline-block', width:18, height:2.5, background:color, borderRadius:1, flexShrink:0}} />
-              : <span style={{display:'inline-block', width:18, height:0, borderTop:`2px dashed ${color}`, flexShrink:0}} />
+          { bg:'#3dbd82',                  line:false, dash:false, label:'Actual' },
+          { bg:'rgba(61,189,130,0.35)',     line:false, dash:false, label:'Forecast' },
+          { bg:'#64b5f6',                  line:true,  dash:false, label:'Budget' },
+          { bg:'rgba(255,255,255,0.5)',     line:true,  dash:true,  label:'Prior Year' },
+        ] as any[]).map(({ bg, line, dash, label }: any) => (
+          <div key={label} style={{display:'flex', alignItems:'center', gap:5,
+            fontSize:11, fontFamily:'sans-serif', color:'#ffffff'}}>
+            {!line
+              ? <span style={{width:13, height:11, background:bg, borderRadius:2, display:'inline-block', flexShrink:0}} />
+              : <span style={{width:18, height:0, display:'inline-block', flexShrink:0,
+                  borderTop: dash ? `2px dashed ${bg}` : `2.5px solid ${bg}`}} />
             }
             {label}
           </div>
