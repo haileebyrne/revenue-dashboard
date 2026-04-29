@@ -554,7 +554,139 @@ function KpiRow({ kpis }: { kpis: DashboardData['kpis'] }) {
   )
 }
 
-type TabId = 'all' | 'top50' | 'cohort' | 'mtd'
+function FunnelTab({ data }: { data: any }) {
+  const rows: any[] = (data.monthly_funnel || []).filter((r: any) => r.yyyy_mm >= '2024-01')
+  if (!rows.length) return <div style={{padding:24, color:'#3D6358'}}>No funnel data available</div>
+
+  const fmtN = (v: number) => v == null ? '—' : Number(Math.round(v)).toLocaleString()
+  const fmtPct = (n: number, d: number) => d > 0 ? (n/d*100).toFixed(1)+'%' : '—'
+  const fmtRate = (v: number, m: number) => m > 0 ? (v/m*10000).toFixed(1) : '—'
+
+  const pctColor = (n: number, d: number) => {
+    if (!d) return {}
+    const p = n/d*100
+    if (p >= 60) return {color:'#1A6B3C', fontWeight:600}
+    if (p >= 40) return {color:'#0D2B22'}
+    return {color:'#C0392B', fontWeight:600}
+  }
+
+  // Group by year for section headers
+  const years = [...new Set(rows.map(r => r.yyyy_mm.slice(0,4)))].sort()
+
+  return (
+    <div>
+      {/* Summary cards */}
+      <div style={{display:'flex', gap:12, padding:'16px 24px 0', flexWrap:'wrap'}}>
+        {(() => {
+          const ytd26 = rows.filter(r => r.yyyy_mm.startsWith('2026'))
+          const tot = (k: string) => ytd26.reduce((s,r) => s + (r[k]||0), 0)
+          const calls = tot('first_calls'), cases = tot('new_cases'),
+                consults = tot('reached_consult'), procs = tot('procedure_count')
+          const cards = [
+            { label:'2026 YTD Calls',    value: fmtN(calls) },
+            { label:'2026 YTD Cases',    value: fmtN(cases),    sub: `${fmtPct(cases,calls)} of calls` },
+            { label:'2026 YTD Consults', value: fmtN(consults), sub: `${fmtPct(consults,cases)} of cases` },
+            { label:'2026 YTD Procs',    value: fmtN(procs),    sub: `${fmtPct(procs,consults)} of consults` },
+          ]
+          return cards.map(c => (
+            <div key={c.label} style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:8,
+              padding:'12px 16px', minWidth:160}}>
+              <div style={{fontSize:10, color:'#7A9E94', textTransform:'uppercase', letterSpacing:'0.05em',
+                fontFamily:'DM Sans, sans-serif', marginBottom:4}}>{c.label}</div>
+              <div style={{fontSize:20, fontWeight:600, color:'#0D2B22', fontFamily:'DM Sans, sans-serif'}}>{c.value}</div>
+              {c.sub && <div style={{fontSize:11, color:'#3D6358', fontFamily:'DM Sans, sans-serif', marginTop:2}}>{c.sub}</div>}
+            </div>
+          ))
+        })()}
+      </div>
+
+      {/* Table */}
+      <div style={{padding:'16px 24px 0'}}>
+        <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, overflow:'hidden'}}>
+          <div style={{overflowX:'auto'}}>
+            <table style={{width:'100%', borderCollapse:'collapse', fontFamily:'DM Sans, sans-serif', fontSize:12}}>
+              <thead>
+                <tr style={{background:'#0B4F3E'}}>
+                  {['Month','First Calls','New Cases','Call→Case %','Consults','Case→Consult %',
+                    'Procedures','Consult→Proc %','Completed','per 10k: Calls','per 10k: Cases',
+                    'per 10k: Consults','per 10k: Procs'].map(h => (
+                    <th key={h} style={{padding:'8px 12px', color:'#F5EDD9', fontWeight:500,
+                      textAlign: h==='Month' ? 'left' : 'right', whiteSpace:'nowrap',
+                      fontSize:11, letterSpacing:'0.02em'}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {years.map(yr => (
+                  <>
+                    <tr key={`yr-${yr}`}>
+                      <td colSpan={13} style={{padding:'6px 12px', background:'#E8F2EF',
+                        color:'#0B4F3E', fontWeight:600, fontSize:11, letterSpacing:'0.05em'}}>
+                        {yr}
+                      </td>
+                    </tr>
+                    {rows.filter(r => r.yyyy_mm.startsWith(yr)).map((r, i) => {
+                      const m18 = r.total_members_18 || 0
+                      const isEven = i % 2 === 0
+                      return (
+                        <tr key={r.yyyy_mm} style={{background: isEven ? '#fff' : '#F7F9F8'}}>
+                          <td style={{padding:'7px 12px', color:'#0D2B22', fontWeight:500,
+                            whiteSpace:'nowrap'}}>{r.yyyy_mm}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#0D2B22'}}>{fmtN(r.first_calls)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#0D2B22'}}>{fmtN(r.new_cases)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', ...pctColor(r.new_cases, r.first_calls)}}>
+                            {fmtPct(r.new_cases, r.first_calls)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#0D2B22'}}>{fmtN(r.reached_consult)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', ...pctColor(r.reached_consult, r.new_cases)}}>
+                            {fmtPct(r.reached_consult, r.new_cases)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#0D2B22'}}>{fmtN(r.procedure_count)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', ...pctColor(r.procedure_count, r.reached_consult)}}>
+                            {fmtPct(r.procedure_count, r.reached_consult)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#0D2B22'}}>{fmtN(r.completed_cases)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#3D6358'}}>{fmtRate(r.first_calls, m18)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#3D6358'}}>{fmtRate(r.new_cases, m18)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#3D6358'}}>{fmtRate(r.reached_consult, m18)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#3D6358'}}>{fmtRate(r.procedure_count, m18)}</td>
+                        </tr>
+                      )
+                    })}
+                    {/* Year subtotal */}
+                    {(() => {
+                      const yr_rows = rows.filter(r => r.yyyy_mm.startsWith(yr))
+                      const tot = (k: string) => yr_rows.reduce((s,r) => s+(r[k]||0), 0)
+                      const c = tot('first_calls'), cs = tot('new_cases'),
+                            co = tot('reached_consult'), p = tot('procedure_count'),
+                            cm = tot('completed_cases'), m = tot('total_members_18')
+                      return (
+                        <tr key={`sub-${yr}`} style={{background:'#EDE3CC', fontWeight:600}}>
+                          <td style={{padding:'7px 12px', color:'#0B4F3E', fontSize:11}}>Total {yr}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#0B4F3E'}}>{fmtN(c)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#0B4F3E'}}>{fmtN(cs)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', ...pctColor(cs,c)}}>{fmtPct(cs,c)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#0B4F3E'}}>{fmtN(co)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', ...pctColor(co,cs)}}>{fmtPct(co,cs)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#0B4F3E'}}>{fmtN(p)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', ...pctColor(p,co)}}>{fmtPct(p,co)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#0B4F3E'}}>{fmtN(cm)}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#3D6358'}}>{fmtRate(c, m/Math.max(yr_rows.length,1))}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#3D6358'}}>{fmtRate(cs, m/Math.max(yr_rows.length,1))}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#3D6358'}}>{fmtRate(co, m/Math.max(yr_rows.length,1))}</td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#3D6358'}}>{fmtRate(p, m/Math.max(yr_rows.length,1))}</td>
+                        </tr>
+                      )
+                    })()}
+                  </>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+type TabId = 'all' | 'top50' | 'cohort' | 'mtd' | 'funnel'
 export default function DashboardClient({ initialData }: { initialData: DashboardData }) {
   const [data, setData] = useState<DashboardData>(initialData)
   const [tab, setTab] = useState<TabId>('all')
@@ -625,6 +757,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
             ['top50',  'Top 50'],
             ['cohort', '2026 Cohort'],
         ['carveout', 'Carveout Summary'],
+            ['funnel', 'Funnel Metrics'],
             ['mtd',    'MTD Performance'],
           ] as [TabId, string][]).map(([t, label]) => (
             <button key={t} className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`} onClick={() => setTab(t)}>
@@ -637,6 +770,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
         {tab === 'cohort' && <CohortTable rows={cohort2026} />}
         {tab === 'mtd'    && <MtdPerformance data={mtdData} />}
         {tab === 'carveout' && <CarveoutTable rows={(data as any).carveoutSummary || []} />}
+        {tab === 'funnel'   && <FunnelTab data={data} />}
       </main>
     </div>
   )

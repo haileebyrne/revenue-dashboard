@@ -53,7 +53,7 @@ export async function GET() {
     const curveAtToday = SCHEDULING_CURVE[currentBizDay] || 0.85;
     const scaleUpFactor = curveAtToday > 0 ? 1 / curveAtToday : 1;
 
-    const [actual, budget, inputs, curSurgeries, ytdSurgeries, priorSurgeries, otherRevenues, funnel] = await Promise.all([
+    const [actual, budget, inputs, curSurgeries, ytdSurgeries, priorSurgeries, otherRevenues, monthlyFunnel, funnel] = await Promise.all([
 
       // Actual revenues (all historical)
       queryDatabricks(
@@ -122,6 +122,45 @@ export async function GET() {
         `SELECT revenue_month, revenue_type, category, amount, data_type
         FROM sandboxwarehouse.growth_analytics.other_revenues`,
         'other-rev'
+      ),
+
+      // Monthly aggregate funnel (2024-present) for Funnel tab
+      queryDatabricks(
+        `WITH all_cases AS (
+          SELECT * FROM datawarehouse.core.member_case_detail
+          WHERE product_name <> 'Hinge Health'
+            AND (case_status NOT IN ('Closed','Void') OR case_closed_date >= date_trunc('YEAR', add_months(current_date(), -36)))
+        ),
+        member_counts AS (
+          SELECT month_end, SUM(unique_members_18) AS total_members_18
+          FROM datawarehouse.client_mart.client_monthly_member_counts
+          GROUP BY month_end
+        ),
+        proc_counts AS (
+          SELECT date_trunc('month', date_of_service) AS svc_month,
+            COUNT(DISTINCT service_id) AS procedure_count
+          FROM datawarehouse.core.member_surgeries
+          WHERE requested_procedure_item_category <> 'INFUSION'
+            AND date_of_service >= '2024-01-01'
+          GROUP BY date_trunc('month', date_of_service)
+        )
+        SELECT
+          date_format(date_trunc('month', c.case_created_date), 'yyyy-MM') AS yyyy_mm,
+          COUNT(DISTINCT c.member_case_id) AS total_calls,
+          COUNT(DISTINCT CASE WHEN c.case_closed_reason_category NOT IN ('Provider Inquiry') OR c.case_closed_reason_category IS NULL THEN c.member_case_id END) AS first_calls,
+          COUNT(DISTINCT CASE WHEN c.case_closed_reason_category NOT IN ('Provider Inquiry','General Benefit Inquiry','Lost Case - First Call') OR c.case_closed_reason_category IS NULL THEN c.member_case_id END) AS new_cases,
+          COUNT(DISTINCT CASE WHEN c.first_consult_date IS NOT NULL OR c.first_surgery_date IS NOT NULL OR c.case_closed_reason_category IN ('Case Complete','Avoided Procedure') OR c.member_journey_status IN ('Procedure','Post Procedure','Consultation') THEN c.member_case_id END) AS reached_consult,
+          COUNT(DISTINCT CASE WHEN c.first_surgery_date IS NOT NULL OR c.member_journey_status IN ('Procedure','Post Procedure') THEN c.member_case_id END) AS reached_procedure,
+          COUNT(DISTINCT CASE WHEN c.case_closed_reason_category = 'Case Complete' THEN c.member_case_id END) AS completed_cases,
+          COALESCE(pc.procedure_count, 0) AS procedure_count,
+          COALESCE(mc.total_members_18, 0) AS total_members_18
+        FROM all_cases c
+        LEFT JOIN proc_counts pc ON pc.svc_month = date_trunc('month', c.case_created_date)
+        LEFT JOIN member_counts mc ON mc.month_end = last_day(date_trunc('month', c.case_created_date))
+        WHERE c.case_created_date >= '2024-01-01'
+        GROUP BY date_format(date_trunc('month', c.case_created_date), 'yyyy-MM'), pc.procedure_count, mc.total_members_18
+        ORDER BY yyyy_mm`,
+        'monthly-funnel'
       ),
 
       // Full Funnel data for cohort tab
@@ -761,6 +800,16 @@ export async function GET() {
       cohort,
       carveoutSummary,
       mtd_performance: mtdPerformance,
+      monthly_funnel: monthlyFunnel.map((r: any) => ({
+        yyyy_mm: r.yyyy_mm,
+        total_calls: parseInt(r.total_calls) || 0,
+        first_calls: parseInt(r.first_calls) || 0,
+        new_cases: parseInt(r.new_cases) || 0,
+        reached_consult: parseInt(r.reached_consult) || 0,
+        procedure_count: parseInt(r.procedure_count) || 0,
+        completed_cases: parseInt(r.completed_cases) || 0,
+        total_members_18: parseInt(r.total_members_18) || 0,
+      })),
     });
 
   } catch (error: any) {
