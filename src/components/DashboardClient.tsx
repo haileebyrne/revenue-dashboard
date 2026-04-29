@@ -53,7 +53,22 @@ function ThEst({ label, col, sort, onSort }: { label: string; col: string; sort:
     </th>
   )
 }
-function Filters({ search, onSearch, fee, onFee, carve, onCarve, vintage, onVintage, vintages, count }: {
+function exportCSV(rows: any[], filename: string) {
+  if (!rows.length) return;
+  const keys = Object.keys(rows[0]);
+  const csv = [keys.join(','), ...rows.map(r => keys.map(k => {
+    const v = r[k];
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'string' && v.includes(',')) return `"${v}"`;
+    return v;
+  }).join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = filename;
+  a.click();
+}
+
+function Filters({ search, onSearch, fee, onFee, carve, onCarve, vintage, onVintage, vintages, count, onExport }: {
   search: string; onSearch: (v: string) => void; fee: string; onFee: (v: string) => void
   carve: string; onCarve: (v: string) => void; vintage: string; onVintage: (v: string) => void
   vintages: string[]; count: number
@@ -139,7 +154,7 @@ function ClientTable({ rows }: { rows: any[] }) {
 
   return (
     <>
-      <Filters search={search} onSearch={setSearch} fee={fee} onFee={setFee} carve={carve} onCarve={setCarve} vintage={vintage} onVintage={setVintage} vintages={vintages} count={filtered.length} />
+      <Filters search={search} onSearch={setSearch} fee={fee} onFee={setFee} carve={carve} onCarve={setCarve} vintage={vintage} onVintage={setVintage} vintages={vintages} count={filtered.length} onExport={() => exportCSV(sorted, 'clients.csv')} />
       <div className={styles.tblWrap}><div className={styles.tblScroll}><table className={styles.table}>
         <thead>
           <tr>
@@ -214,7 +229,7 @@ function CohortTable({ rows }: { rows: CohortClient[] }) {
   const sorted = sortRows(filtered as unknown as Record<string, unknown>[], sort) as unknown as any[]
   return (
     <>
-      <Filters search={search} onSearch={setSearch} fee={fee} onFee={setFee} carve={carve} onCarve={setCarve} vintage={vintage} onVintage={setVintage} vintages={vintages} count={filtered.length} />
+      <Filters search={search} onSearch={setSearch} fee={fee} onFee={setFee} carve={carve} onCarve={setCarve} vintage={vintage} onVintage={setVintage} vintages={vintages} count={filtered.length} onExport={() => exportCSV(sorted, 'clients.csv')} />
       <div className={styles.tblWrap}><div className={styles.tblScroll}><table className={styles.table}>
         <thead><tr>
           <Th label="Client" col="client_name" sort={sort} onSort={onSort} />
