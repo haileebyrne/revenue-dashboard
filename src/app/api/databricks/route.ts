@@ -472,16 +472,24 @@ export async function GET() {
         else if (rt === 'CCD Fees' || rt === 'Infusions Fees') {} // exclude
         else pyOtherFeeRev += rev;
       }
-      // Budget monthly
+      // Budget monthly — exclude CCD and Infusions
       if (dt === 'budget' && ry === year && rm === month) {
-        if (cat === 'variable_fee') budgetVarFeeRev += rev;
-        else if (cat === 'fixed_fee') budgetFixedFeeRev = rev;
+        const rt = String(r.revenue_type || '');
+        if (rt === 'CCD Fees' || rt === 'Infusions Fees') {}
+        else if (cat === 'variable_fee') budgetVarFeeRev += rev;
+        else if (cat === 'fixed_fee') budgetFixedFeeRev += rev;
+        else if (cat === 'proc_count' && rt === 'Variable Procs') budgetVarProcs = rev;
+        else if (cat === 'proc_count' && rt === 'Fixed Procs') budgetFixedProcs = rev;
         else budgetOtherFeeRev += rev;
       }
-      // OKR monthly
+      // OKR monthly — exclude CCD and Infusions
       if (dt === 'okr' && ry === year && rm === month) {
-        if (cat === 'variable_fee') okrVarFeeRev += rev;
-        else if (cat === 'fixed_fee') okrFixedFeeRev = rev;
+        const rt = String(r.revenue_type || '');
+        if (rt === 'CCD Fees' || rt === 'Infusions Fees') {}
+        else if (cat === 'variable_fee') okrVarFeeRev += rev;
+        else if (cat === 'fixed_fee') okrFixedFeeRev += rev;
+        else if (cat === 'proc_count' && rt === 'Variable Procs') okrVarProcs = rev;
+        else if (cat === 'proc_count' && rt === 'Fixed Procs') okrFixedProcs = rev;
         else okrOtherFeeRev += rev;
       }
     }
