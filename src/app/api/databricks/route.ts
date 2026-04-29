@@ -504,13 +504,16 @@ export async function GET() {
     const pyTotalEom = toM(pyMonthRev + pyFixedMtd + pyOtherMtd); // PY full month
 
     // Use other_revenues table values directly - don't mix with curBudRev
+    // Budget/OKR use Data Sources numbers (PEPM is in otherFeeRev, not fixed fee)
     const budVarRev = budgetVarFeeRev || curBudRev;
-    const budgetTotalEom = toM(budVarRev + budgetFixedFeeRev + budgetOtherFeeRev);
-    const budgetTotalMtd = toM((budVarRev + budgetFixedFeeRev + budgetOtherFeeRev) * scaleDownFactor);
+    const budgetEomTotal = budVarRev + budgetOtherFeeRev; // no separate fixed fee - PEPM included in other
+    const budgetTotalEom = toM(budgetEomTotal);
+    const budgetTotalMtd = toM(budgetEomTotal * scaleDownFactor);
 
     const okrVarRev = okrVarFeeRev || (budVarRev * 1.1);
-    const okrTotalEom = toM(okrVarRev + okrFixedFeeRev + okrOtherFeeRev);
-    const okrTotalMtd = toM((okrVarRev + okrFixedFeeRev + okrOtherFeeRev) * scaleDownFactor);
+    const okrEomTotal = okrVarRev + okrOtherFeeRev; // PEPM same as budget, included in other
+    const okrTotalEom = toM(okrEomTotal);
+    const okrTotalMtd = toM(okrEomTotal * scaleDownFactor);
 
     // Procedure counts
     const pyVarProcs = Object.values(priorProcByClient).reduce((a, c) => a + (c[month] || 0), 0);
@@ -536,9 +539,14 @@ export async function GET() {
         if (dt === 'okr' && rt === 'Fixed Procs') okrFixedProcs = parseRevenue(r.amount);
       }
     }
-    const budgetTotalProcs = Math.round((budgetVarProcs || 2471) + (budgetFixedProcs || 521));
+    const budVarProcs = budgetVarProcs || 2471;
+    const budFixedProcs = budgetFixedProcs || 521;
+    const budgetTotalProcs = Math.round(budVarProcs + budFixedProcs);
     const budgetTotalProcsEom = budgetTotalProcs;
-    const okrTotalProcs = Math.round((okrVarProcs || 2959) + (okrFixedProcs || 521));
+    // OKR fixed procs = budget fixed procs × (okr var procs / budget var procs)
+    const okrVar = okrVarProcs || 2959;
+    const okrFixedScaled = budVarProcs > 0 ? Math.round(budFixedProcs * (okrVar / budVarProcs)) : budFixedProcs;
+    const okrTotalProcs = Math.round(okrVar + okrFixedScaled);
 
     const actTotalProcs = totalScheduledProcs;
     const actTotalProcsEom = totalEomProcs;
