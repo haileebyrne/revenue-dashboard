@@ -451,10 +451,12 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
       </header>
       <main className={styles.main}>
         <KpiRow kpis={data.kpis} />
-        <div style={{display:'flex', alignItems:'flex-start', flexWrap:'wrap', gap:16, padding:'12px 24px 0'}}>
+        <div style={{display:'flex', alignItems:'stretch', flexWrap:'wrap', gap:16, padding:'12px 24px 0'}}>
           <RevenueWaterfall data={data} />
           <Top5Clients data={data} />
-          <MtdGauges data={data} />
+          <div style={{flex:1, minWidth:280}}>
+            <MtdGauges data={data} />
+          </div>
         </div>
         <div className={styles.tabs}>
           {([
@@ -692,8 +694,10 @@ function MtdGauges({ data }: { data: any }) {
       border: '1px solid #D4E4DF',
       borderRadius: 10,
       padding: '14px 20px 12px',
-      display: 'inline-block',
-      verticalAlign: 'top',
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      boxSizing: 'border-box' as const,
     }}>
       <div style={{fontSize:11, fontWeight:600, color:'#3D6358', fontFamily:'DM Sans, sans-serif',
         textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:2}}>
@@ -704,7 +708,7 @@ function MtdGauges({ data }: { data: any }) {
           Forecast ${(fcst / 1_000_000).toFixed(1)}M
         </div>
       )}
-      <div style={{display:'flex', gap:12, alignItems:'flex-start'}}>
+      <div style={{display:'flex', gap:12, alignItems:'flex-start', justifyContent:'center', flex:1}}>
         {gauges.map(g => <Gauge key={g.label} {...g} />)}
       </div>
       <div style={{display:'flex', gap:16, paddingTop:8, justifyContent:'center'}}>
