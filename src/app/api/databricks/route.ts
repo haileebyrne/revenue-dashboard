@@ -742,6 +742,7 @@ export async function GET() {
       top50: allWithTotal,
       top50_only: top50,
       cohort,
+      carveoutSummary,
       mtd_performance: mtdPerformance,
     });
 
