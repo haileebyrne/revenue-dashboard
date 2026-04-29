@@ -620,12 +620,15 @@ function RevenueWaterfall({ data }: { data: any }) {
   const totalRow = (data.top50 || []).find((r: any) => r.is_total)
   const mtd = data.mtd_performance?.revenue || {}
 
+  const fixedOther = 3.843
+  const mb = (data.kpis as any)?.monthly_budget || {}
+  const budM = (m: number) => mb[String(m)] ? (mb[String(m)] + 3172352 + 670908) / 1_000_000 : null
   const months = [
-    { label: 'Jan', value: totalRow?.rev26_jan ? totalRow.rev26_jan / 1000 : null },
-    { label: 'Feb', value: totalRow?.rev26_feb ? totalRow.rev26_feb / 1000 : null },
-    { label: 'Mar', value: totalRow?.rev26_mar ? totalRow.rev26_mar / 1000 : null },
-    { label: 'Apr MTD', value: mtd.actual_mtd || null },
-    { label: 'Apr Fcst', value: mtd.actual_eom || null, forecast: true },
+    { label: 'Jan', value: totalRow?.rev26_jan ? totalRow.rev26_jan / 1000 + fixedOther : null, budget: budM(1) },
+    { label: 'Feb', value: totalRow?.rev26_feb ? totalRow.rev26_feb / 1000 + fixedOther : null, budget: budM(2) },
+    { label: 'Mar', value: totalRow?.rev26_mar ? totalRow.rev26_mar / 1000 + fixedOther : null, budget: budM(3) },
+    { label: 'Apr MTD', value: mtd.actual_mtd || null, budget: mtd.budget_mtd || null },
+    { label: 'Apr Fcst', value: mtd.actual_eom || null, budget: mtd.budget_eom || null, forecast: true },
   ]
 
   const budget = mtd.budget_eom || null
