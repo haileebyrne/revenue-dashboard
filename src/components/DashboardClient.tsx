@@ -451,7 +451,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
       </header>
       <main className={styles.main}>
         <KpiRow kpis={data.kpis} />
-        <div style={{display:'flex', alignItems:'flex-start', flexWrap:'wrap'}}>
+        <div style={{display:'flex', alignItems:'flex-start', flexWrap:'wrap', gap:16, padding:'12px 24px 0'}}>
           <RevenueWaterfall data={data} />
           <Top5Clients data={data} />
           <MtdGauges data={data} />
@@ -688,7 +688,6 @@ function MtdGauges({ data }: { data: any }) {
 
   return (
     <div style={{
-      margin: '12px 0 0 16px',
       background: '#ffffff',
       border: '1px solid #D4E4DF',
       borderRadius: 10,
@@ -738,7 +737,6 @@ function Top5Clients({ data }: { data: any }) {
 
   return (
     <div style={{
-      margin: '12px 0 0 16px',
       background: '#ffffff',
       border: '1px solid #D4E4DF',
       borderRadius: 10,
@@ -845,7 +843,6 @@ function RevenueWaterfall({ data }: { data: any }) {
 
   return (
     <div style={{
-      margin: '12px 24px 0',
       background: '#ffffff',
       border: '1px solid #D4E4DF',
       borderRadius: 10,
@@ -853,6 +850,7 @@ function RevenueWaterfall({ data }: { data: any }) {
       display: 'inline-block',
       minWidth: 360,
     }}>
+      <div style={{fontSize:11, fontWeight:600, color:'#3D6358', fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10}}>Monthly Revenue '26</div>
       <svg viewBox={`0 0 ${W} ${H}`} style={{width: 620, height: H, overflow: 'visible', display: 'block'}}>
         {/* Grid lines */}
         {[0.25, 0.5, 0.75, 1].map(t => (
