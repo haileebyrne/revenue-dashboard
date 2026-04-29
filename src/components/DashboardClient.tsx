@@ -831,7 +831,7 @@ function MtdGauges({ data }: { data: any }) {
           <line x1={CX} y1={CY} x2={nx.toFixed(2)} y2={ny.toFixed(2)}
             stroke="#0D2B22" strokeWidth={2} strokeLinecap="round" />
           <circle cx={CX} cy={CY} r={4} fill="#0D2B22" />
-          <text x={CX} y={CY - 12} textAnchor="middle" fontSize={20} fontWeight={600}
+          <text x={CX} y={CY - 12} textAnchor="middle" fontSize={16} fontWeight={600}
             fontFamily="DM Sans, sans-serif" style={{fill: valColor}}>
             {pct.toFixed(1)}%
           </text>
@@ -888,12 +888,12 @@ function Top5Clients({ data }: { data: any }) {
   const rows = ((data.top50 || []) as any[])
     .filter((r: any) => !r.is_total && r.client_name !== 'Total Surgery Care Revenue')
     .sort((a: any, b: any) => (b.rev26_ytd ?? 0) - (a.rev26_ytd ?? 0))
-    .slice(0, 7)
+    .slice(0, 5)
 
   if (!rows.length) return null
 
   const maxVal = Math.max(...rows.map((r: any) => Math.max(r.rev26_ytd ?? 0, r.rev25_ytd ?? 0))) * 1.15
-  const W = 420, ROW_H = 30, PAD_L = 130, PAD_R = 60, PAD_T = 8, BAR_H = 11
+  const W = 420, ROW_H = 24, PAD_L = 130, PAD_R = 60, PAD_T = 6, BAR_H = 9
   const H = PAD_T + rows.length * ROW_H + 24
   const toW = (v: number) => v == null ? 0 : Math.max(0, (v / maxVal) * (W - PAD_L - PAD_R))
   const rowY = (i: number) => PAD_T + i * ROW_H
@@ -987,7 +987,7 @@ function RevenueWaterfall({ data }: { data: any }) {
   if (!validVals.length) return null
 
   const maxV = Math.max(...validVals) * 1.25
-  const W = 620, H = 170, PAD_L = 52, PAD_R = 32, PAD_T = 28, PAD_B = 32
+  const W = 620, H = 120, PAD_L = 48, PAD_R = 28, PAD_T = 18, PAD_B = 24
   const barW = 56
   const chartW = W - PAD_L - PAD_R
   const chartH = H - PAD_T - PAD_B
@@ -1014,7 +1014,7 @@ function RevenueWaterfall({ data }: { data: any }) {
       minWidth: 360,
     }}>
       <div style={{fontSize:11, fontWeight:600, color:'#3D6358', fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10}}>Monthly Revenue '26</div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{width: 620, height: H, overflow: 'visible', display: 'block'}}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width: 580, height: H, overflow: 'visible', display: 'block'}}>
         {/* Grid lines */}
         {[0.25, 0.5, 0.75, 1].map(t => (
           <line key={t} x1={PAD_L} x2={W - PAD_R}
