@@ -547,12 +547,16 @@ export async function GET() {
     // Totals
     const actTotalMtd = toM(actVarMtd + fixedFeeMtd + otherFeeMtd);
     const actTotalEom = toM(actVarEom + fixedFeeEom + otherFeeEom);
-    const pyTotalMtd = toM(pyVarMtd + pyFixedMtd + pyOtherMtd);
-    const pyTotalEom = toM(pyVarEom + pyFixedEomRev + pyOtherFeeRev);
-    const budgetTotalMtd = toM(budVarMtd + budFixedMtd + budOtherMtd);
-    const budgetTotalEom = toM(budVarEomRev + budgetFixedFeeRev + budgetOtherFeeRev);
-    const okrTotalMtd = toM(okrVarMtd + okrFixedMtd + okrOtherMtd);
-    const okrTotalEom = toM(okrVarEomRev + okrFixedFeeRev + okrOtherFeeRev);
+    // EOM totals from other_revenues table
+    const pyEomTotal = pyVarFeeRev + pyFixedFeeRev + pyOtherFeeRev;
+    const pyTotalEom = toM(pyEomTotal);
+    const pyTotalMtd = toM(pyEomTotal * scaleDownFactor);
+    const budEomTotal = (budgetVarFeeRev || curBudRev) + budgetFixedFeeRev + budgetOtherFeeRev;
+    const budgetTotalEom = toM(budEomTotal);
+    const budgetTotalMtd = toM(budEomTotal * scaleDownFactor);
+    const okrEomTotal = (okrVarFeeRev || (budgetVarFeeRev || curBudRev) * 1.1) + okrFixedFeeRev + okrOtherFeeRev;
+    const okrTotalEom = toM(okrEomTotal);
+    const okrTotalMtd = toM(okrEomTotal * scaleDownFactor);
 
     // ─── Proc count totals ───
     const pyTotalProcs = Math.round((pyVarProcsEom || 0) + (pyFixedProcsEom || 0));
