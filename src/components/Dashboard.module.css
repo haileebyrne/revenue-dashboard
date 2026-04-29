@@ -341,3 +341,12 @@ thead tr:nth-child(2) .th,
 thead tr:nth-child(2) .thEst {
   top: 33px;
 }
+
+/* Ensure sticky headers have solid background so they don't bleed */
+thead tr:first-child .th {
+  background: var(--teal);
+}
+thead tr:nth-child(2) .th,
+thead tr:nth-child(2) .thEst {
+  background: var(--teal);
+}
