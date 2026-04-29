@@ -451,6 +451,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
       </header>
       <main className={styles.main}>
         <KpiRow kpis={data.kpis} />
+        <TrendChart data={data} />
         <div className={styles.tabs}>
           {([
             ['all',    'All Clients'],
@@ -536,5 +537,81 @@ function CarveoutTable({ rows }: { rows: any[] }) {
       </tbody>
     </table>
     </div></div>
+  )
+}
+
+function TrendChart({ data }: { data: any }) {
+  const kpis = data.kpis || {}
+  const mtd = data.mtd_performance?.revenue || {}
+
+  // Monthly actual revenue ($M) - from allClients total row
+  const totalRow = (data.allClients || []).find((r: any) => r.is_total)
+  const jan = totalRow?.rev26_jan ? totalRow.rev26_jan / 1000 : null
+  const feb = totalRow?.rev26_feb ? totalRow.rev26_feb / 1000 : null
+  const mar = totalRow?.rev26_mar ? totalRow.rev26_mar / 1000 : null
+  const aprMtd = mtd.actual_mtd || null
+  const aprEom = mtd.actual_eom || null
+
+  // Budget
+  const budEom = mtd.budget_eom || null
+  // PY
+  const pyEom = mtd.py_eom || null
+
+  const points = [
+    { label: 'Jan', actual: jan, budget: budEom, py: pyEom },
+    { label: 'Feb', actual: feb, budget: budEom, py: pyEom },
+    { label: 'Mar', actual: mar, budget: budEom, py: pyEom },
+    { label: 'Apr MTD', actual: aprMtd, budget: budEom, py: pyEom },
+    { label: 'Apr Fcst', actual: aprEom, budget: budEom, py: pyEom, forecast: true },
+  ]
+
+  const allVals = points.flatMap(p => [p.actual, p.budget, p.py]).filter(v => v != null) as number[]
+  const maxV = Math.max(...allVals) * 1.1
+  const minV = Math.min(...allVals) * 0.9
+  const range = maxV - minV
+
+  const W = 600, H = 80, PAD = 30
+  const x = (i: number) => PAD + (i / (points.length - 1)) * (W - PAD * 2)
+  const y = (v: number) => H - PAD/2 - ((v - minV) / range) * (H - PAD)
+
+  const line = (vals: (number|null)[], color: string, dash?: string) => {
+    const pts = vals.map((v, i) => v != null ? `${x(i)},${y(v)}` : null).filter(Boolean)
+    if (pts.length < 2) return null
+    return <polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth={2} strokeDasharray={dash} />
+  }
+
+  return (
+    <div style={{padding:'12px 24px 0', display:'flex', alignItems:'center', gap:24}}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', maxWidth:600, height:80}}>
+        {/* Grid lines */}
+        {[0.25,0.5,0.75,1].map(t => (
+          <line key={t} x1={PAD} x2={W-PAD} y1={y(minV + range*t)} y2={y(minV + range*t)}
+            stroke="var(--border)" strokeWidth={0.5} />
+        ))}
+        {/* Lines */}
+        {line(points.map(p => p.py), 'rgba(245,237,217,0.3)')}
+        {line(points.map(p => p.budget), '#5b9bd5', '4,2')}
+        {line(points.map(p => p.actual), 'var(--teal-mid)', '')}
+        {/* Dots */}
+        {points.map((p, i) => p.actual != null ? (
+          <circle key={i} cx={x(i)} cy={y(p.actual!)} r={3}
+            fill={p.forecast ? 'none' : 'var(--teal-mid)'}
+            stroke="var(--teal-mid)" strokeWidth={2} />
+        ) : null)}
+        {/* Labels */}
+        {points.map((p, i) => (
+          <text key={i} x={x(i)} y={H-2} textAnchor="middle" fontSize={9} fill="var(--text-3)">{p.label}</text>
+        ))}
+        {/* Value labels */}
+        {points.map((p, i) => p.actual != null ? (
+          <text key={i} x={x(i)} y={y(p.actual!) - 5} textAnchor="middle" fontSize={9} fill="var(--text-2)">${p.actual.toFixed(1)}M</text>
+        ) : null)}
+      </svg>
+      <div style={{fontSize:11, color:'var(--text-3)', whiteSpace:'nowrap', lineHeight:2}}>
+        <div><span style={{display:'inline-block',width:12,height:2,background:'var(--teal-mid)',marginRight:6,verticalAlign:'middle'}}></span>Actual</div>
+        <div><span style={{display:'inline-block',width:12,height:2,background:'#5b9bd5',marginRight:6,verticalAlign:'middle',borderTop:'2px dashed #5b9bd5'}}></span>Budget</div>
+        <div><span style={{display:'inline-block',width:12,height:2,background:'rgba(245,237,217,0.3)',marginRight:6,verticalAlign:'middle'}}></span>PY</div>
+      </div>
+    </div>
   )
 }
