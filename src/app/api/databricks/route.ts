@@ -470,16 +470,20 @@ export async function GET() {
         else if (cat === 'fixed_fee') pyFixedFeeRev += rev;
         else pyOtherFeeRev += rev;
       }
-      // Budget monthly
+      // Budget monthly — ignore fixed_fee (PEPM already in 'other')
       if (dt === 'budget' && ry === year && rm === month) {
         if (cat === 'variable_fee') budgetVarFeeRev += rev;
-        else if (cat === 'fixed_fee') budgetFixedFeeRev = rev;
+        else if (cat === 'fixed_fee') {} // skip - PEPM in other
+        else if (cat === 'proc_count' && String(r.revenue_type) === 'Variable Procs') budgetVarProcs = rev;
+        else if (cat === 'proc_count' && String(r.revenue_type) === 'Fixed Procs') budgetFixedProcs = rev;
         else budgetOtherFeeRev += rev;
       }
-      // OKR monthly
+      // OKR monthly — ignore fixed_fee (PEPM already in 'other')
       if (dt === 'okr' && ry === year && rm === month) {
         if (cat === 'variable_fee') okrVarFeeRev += rev;
-        else if (cat === 'fixed_fee') okrFixedFeeRev = rev;
+        else if (cat === 'fixed_fee') {} // skip - PEPM in other
+        else if (cat === 'proc_count' && String(r.revenue_type) === 'Variable Procs') okrVarProcs = rev;
+        else if (cat === 'proc_count' && String(r.revenue_type) === 'Fixed Procs') okrFixedProcs = rev;
         else okrOtherFeeRev += rev;
       }
     }
