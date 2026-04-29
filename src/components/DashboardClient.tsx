@@ -284,10 +284,10 @@ function MtdPerformance({ data }: { data: any }) {
   const Section = ({title, rows, actualMtd, actualEom, isRev}: any) => (
     <div style={{marginBottom:28}}>
       <div className={styles.tblWrap}><div className={styles.tblScroll}>
-      <table className={styles.table}>
+      <table className={styles.table} style={{tableLayout:'fixed', width:'100%'}}>
         <thead>
           <tr>
-            <th className={styles.th} style={{textAlign:'left', width:120}}>Total Surgery Care {isRev ? 'Revenue ($mm)' : 'Procedure Count'}</th>
+            <th className={styles.th} style={{textAlign:'left', width:140, maxWidth:140}}>Total Surgery Care {isRev ? 'Revenue ($mm)' : 'Procedure Count'}</th>
             <th className={`${styles.th} ${styles.right}`} style={{width:90}}>{dayLabel} MTD</th>
             <th className={`${styles.th} ${styles.right}`} style={{width:90}}>{mLabel}. Fcst.</th>
             <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)', width:80}}>MTD Var</th>
@@ -299,7 +299,7 @@ function MtdPerformance({ data }: { data: any }) {
         <tbody>
           {rows.map((r: any, i: number) => (
             <tr key={i} className={styles.row}>
-              <td className={styles.td} style={{fontWeight:600}}>{r.label}</td>
+              <td className={styles.td} style={{fontWeight:600, width:100, maxWidth:100}}>{r.label}</td>
               <td className={`${styles.td} ${styles.right}`}>{isRev ? fmtM(r.mtd) : fmtN(r.mtd)}</td>
               <td className={`${styles.td} ${styles.right}`}>{isRev ? fmtM(r.eom) : fmtN(r.eom)}</td>
               <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>{fmtVar(r.var_mtd, isRev)}</td>
