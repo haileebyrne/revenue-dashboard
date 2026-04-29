@@ -429,8 +429,12 @@ export async function GET() {
         procs26_feb: totals(clients, 'procs26_feb') || null,
         procs26_mar: totals(clients, 'procs26_mar') || null,
         procs26_apr_mtd: totals(clients, 'procs26_apr_mtd') || null,
-        procs26_apr_est: totals(clients, 'procs26_apr_est') ? Math.round(totals(clients, 'procs26_apr_est') * carveoutProcScaleFactor) : null,
-        procs26_ytd: totals(clients, 'procs26_ytd') ? Math.round(totals(clients, 'procs26_ytd') * carveoutYtdProcScaleFactor) : null,
+        procs26_apr_est: totals(clients, 'procs26_apr_mtd') ? Math.round(totals(clients, 'procs26_apr_mtd') * scaleUpFactor) : null,
+        procs26_ytd: (() => {
+          const mtd = totals(clients, 'procs26_apr_mtd');
+          const prior = totals(clients, 'procs26_jan') + totals(clients, 'procs26_feb') + totals(clients, 'procs26_mar');
+          return mtd ? Math.round(prior + mtd * scaleUpFactor) : null;
+        })(),
         procs25_jan: totals(clients, 'procs25_jan') || null,
         procs25_feb: totals(clients, 'procs25_feb') || null,
         procs25_mar: totals(clients, 'procs25_mar') || null,
