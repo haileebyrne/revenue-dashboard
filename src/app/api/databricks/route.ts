@@ -411,6 +411,54 @@ export async function GET() {
       allClients.splice(0, allClients.length, ...nonAttClients, mergedAtt);
     }
 
+    // Carveout Summary
+    const carveoutTypes = ['Bariatric Carve-Out', 'Multi Carve-Out', 'Voluntary'];
+    const carveoutSummary = carveoutTypes.map(co => {
+      const clients = allClients.filter((r: any) => r.carveout === co && !r.is_total);
+      const totals = (arr: any[], field: string) => arr.reduce((a, r) => a + (r[field] || 0), 0);
+      return {
+        carveout: co,
+        client_count: clients.length,
+        ees: totals(clients, 'ees'),
+        procs26_jan: totals(clients, 'procs26_jan') || null,
+        procs26_feb: totals(clients, 'procs26_feb') || null,
+        procs26_mar: totals(clients, 'procs26_mar') || null,
+        procs26_apr_mtd: totals(clients, 'procs26_apr_mtd') || null,
+        procs26_apr_est: totals(clients, 'procs26_apr_est') || null,
+        procs26_ytd: totals(clients, 'procs26_ytd') || null,
+        procs25_jan: totals(clients, 'procs25_jan') || null,
+        procs25_feb: totals(clients, 'procs25_feb') || null,
+        procs25_mar: totals(clients, 'procs25_mar') || null,
+        procs25_apr: totals(clients, 'procs25_apr') || null,
+        procs25_ytd: totals(clients, 'procs25_ytd') || null,
+        rev26_jan: totals(clients, 'rev26_jan') || null,
+        rev26_feb: totals(clients, 'rev26_feb') || null,
+        rev26_mar: totals(clients, 'rev26_mar') || null,
+        rev26_apr_mtd: totals(clients, 'rev26_apr_mtd') || null,
+        rev26_apr_est: totals(clients, 'rev26_apr_est') || null,
+        rev26_ytd: totals(clients, 'rev26_ytd') || null,
+        rev25_jan: totals(clients, 'rev25_jan') || null,
+        rev25_feb: totals(clients, 'rev25_feb') || null,
+        rev25_mar: totals(clients, 'rev25_mar') || null,
+        rev25_apr: totals(clients, 'rev25_apr') || null,
+        rev25_ytd: totals(clients, 'rev25_ytd') || null,
+        ytd_budget: totals(clients, 'ytd_budget') || null,
+      };
+    });
+    // Add total row
+    const coTotal = {
+      carveout: 'Total',
+      client_count: allClients.filter((r: any) => !r.is_total).length,
+      ees: allClients.filter((r: any) => !r.is_total).reduce((a: number, r: any) => a + (r.ees || 0), 0),
+      ...Object.fromEntries(['procs26_jan','procs26_feb','procs26_mar','procs26_apr_mtd','procs26_apr_est','procs26_ytd',
+        'procs25_jan','procs25_feb','procs25_mar','procs25_apr','procs25_ytd',
+        'rev26_jan','rev26_feb','rev26_mar','rev26_apr_mtd','rev26_apr_est','rev26_ytd',
+        'rev25_jan','rev25_feb','rev25_mar','rev25_apr','rev25_ytd','ytd_budget'].map(f => [f,
+        carveoutSummary.reduce((a, r) => a + (r[f as keyof typeof r] as number || 0), 0) || null
+      ]))
+    };
+    carveoutSummary.push(coTotal);
+
     const top50 = [...allClients]
       .filter((r: any) => r.fee_structure !== 'Fixed')
       .sort((a: any, b: any) => (fullYearBudByName[b.client_name] || 0) - (fullYearBudByName[a.client_name] || 0))

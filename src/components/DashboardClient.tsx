@@ -456,6 +456,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
             ['all',    'All Clients'],
             ['top50',  'Top 50'],
             ['cohort', '2026 Cohort'],
+        ['carveout', 'Carveout Summary'],
             ['mtd',    'MTD Performance'],
           ] as [TabId, string][]).map(([t, label]) => (
             <button key={t} className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`} onClick={() => setTab(t)}>
@@ -467,7 +468,73 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
         {tab === 'top50'  && <ClientTable rows={top50Only} />}
         {tab === 'cohort' && <CohortTable rows={cohort2026} />}
         {tab === 'mtd'    && <MtdPerformance data={mtdData} />}
+        {tab === 'carveout' && <CarveoutTable rows={data.carveoutSummary || []} />}
       </main>
     </div>
+  )
+}
+
+function CarveoutTable({ rows }: { rows: any[] }) {
+  if (!rows.length) return <div style={{padding:24}}>No carveout data</div>
+  const fmtN = (v: any) => v == null ? '—' : Number(Math.round(v)).toLocaleString()
+  const fmtM = (v: any) => v == null ? '—' : `$${(v/1000).toFixed(0)}K`
+  const isTotal = (r: any) => r.carveout === 'Total'
+
+  return (
+    <div className={styles.tblWrap}><div className={styles.tblScroll}>
+    <table className={styles.table}>
+      <thead>
+        <tr>
+          <th className={styles.th} style={{textAlign:'left'}}>Carve-Out</th>
+          <th className={`${styles.th} ${styles.right}`}># Clients</th>
+          <th className={`${styles.th} ${styles.right}`}>EEs</th>
+          <th className={styles.th} colSpan={6} style={{textAlign:'center', borderLeft:'2px solid rgba(245,237,217,0.2)'}}>YTD Procedures '26</th>
+          <th className={styles.th} colSpan={5} style={{textAlign:'center', borderLeft:'2px solid rgba(245,237,217,0.2)'}}>YTD Procedures '25</th>
+          <th className={styles.th} colSpan={6} style={{textAlign:'center', borderLeft:'2px solid rgba(245,237,217,0.2)'}}>Monthly Revenue '26 ($K)</th>
+          <th className={styles.th} colSpan={5} style={{textAlign:'center', borderLeft:'2px solid rgba(245,237,217,0.2)'}}>Monthly Revenue '25 ($K)</th>
+        </tr>
+        <tr>
+          <th className={styles.th}></th>
+          <th className={`${styles.th} ${styles.right}`}></th>
+          <th className={`${styles.th} ${styles.right}`}></th>
+          {['JAN','FEB','MAR','APR MTD','APR EST','YTD'].map(h => <th key={h} className={`${styles.th} ${styles.right}`} style={h==='JAN'?{borderLeft:'2px solid rgba(245,237,217,0.2)'}:{}}>{h}</th>)}
+          {['JAN','FEB','MAR','APR','YTD'].map(h => <th key={h} className={`${styles.th} ${styles.right}`} style={h==='JAN'?{borderLeft:'2px solid rgba(245,237,217,0.2)'}:{}}>{h}</th>)}
+          {['JAN','FEB','MAR','APR MTD','APR EST','YTD'].map(h => <th key={h} className={`${styles.th} ${styles.right}`} style={h==='JAN'?{borderLeft:'2px solid rgba(245,237,217,0.2)'}:{}}>{h}</th>)}
+          {['JAN','FEB','MAR','APR','YTD'].map(h => <th key={h} className={`${styles.th} ${styles.right}`} style={h==='JAN'?{borderLeft:'2px solid rgba(245,237,217,0.2)'}:{}}>{h}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r, i) => (
+          <tr key={i} className={`${styles.row} ${isTotal(r) ? styles.totalRow : ''}`}>
+            <td className={styles.td} style={{fontWeight: isTotal(r) ? 700 : 600}}>{r.carveout}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.client_count)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.ees)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>{fmtN(r.procs26_jan)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.procs26_feb)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.procs26_mar)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.procs26_apr_mtd)}</td>
+            <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtN(r.procs26_apr_est)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtN(r.procs26_ytd)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>{fmtN(r.procs25_jan)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.procs25_feb)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.procs25_mar)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtN(r.procs25_apr)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtN(r.procs25_ytd)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>{fmtM(r.rev26_jan)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtM(r.rev26_feb)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtM(r.rev26_mar)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtM(r.rev26_apr_mtd)}</td>
+            <td className={`${styles.td} ${styles.right} ${styles.estCell}`}>{fmtM(r.rev26_apr_est)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtM(r.rev26_ytd)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{borderLeft:'2px solid var(--border)'}}>{fmtM(r.rev25_jan)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtM(r.rev25_feb)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtM(r.rev25_mar)}</td>
+            <td className={`${styles.td} ${styles.right}`}>{fmtM(r.rev25_apr)}</td>
+            <td className={`${styles.td} ${styles.right}`} style={{fontWeight:600}}>{fmtM(r.rev25_ytd)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    </div></div>
   )
 }
