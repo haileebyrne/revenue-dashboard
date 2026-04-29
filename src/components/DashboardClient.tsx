@@ -555,7 +555,47 @@ function KpiRow({ kpis }: { kpis: DashboardData['kpis'] }) {
 }
 
 function FunnelTab({ data }: { data: any }) {
-  const rows: any[] = (data.monthly_funnel || []).filter((r: any) => r.yyyy_mm >= '2024-01')
+  const [rows, setRows] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string|null>(null)
+
+  useEffect(() => {
+    setLoading(true)
+    fetch('/api/funnel')
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) { setError(d.error); setLoading(false); return }
+        // Aggregate by yyyy_mm across all clients
+        const byMonth: Record<string, any> = {}
+        for (const r of (d.data || [])) {
+          if (!r.yyyy_mm || r.yyyy_mm < '2024-01') continue
+          if (!byMonth[r.yyyy_mm]) byMonth[r.yyyy_mm] = {
+            yyyy_mm: r.yyyy_mm, total_calls:0, first_calls:0, new_cases:0,
+            reached_consult:0, reached_procedure:0, completed_cases:0,
+            procedure_count:0, total_members_18:0,
+            consult_within_30_days:0, surgery_within_90_days:0
+          }
+          const m = byMonth[r.yyyy_mm]
+          m.total_calls        += parseInt(r.total_calls)||0
+          m.first_calls        += parseInt(r.first_call_count)||0
+          m.new_cases          += parseInt(r.new_opened_cases)||0
+          m.reached_consult    += parseInt(r.reached_consult)||0
+          m.reached_procedure  += parseInt(r.reached_procedure)||0
+          m.completed_cases    += parseInt(r.completed_cases)||0
+          m.procedure_count    += parseInt(r.procedure_count)||0
+          m.total_members_18   += parseInt(r.total_unique_members_18)||0
+          m.consult_within_30_days += parseInt(r.consult_within_30_days)||0
+          m.surgery_within_90_days += parseInt(r.surgery_within_90_days)||0
+        }
+        setRows(Object.values(byMonth).sort((a,b) => a.yyyy_mm.localeCompare(b.yyyy_mm)))
+        setLoading(false)
+      })
+      .catch(e => { setError(e.message); setLoading(false) })
+  }, [])
+
+  if (loading) return <div style={{padding:24, color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>Loading funnel data...</div>
+  if (error)   return <div style={{padding:24, color:'#C0392B', fontFamily:'DM Sans, sans-serif'}}>Error: {error}</div>
+  if (!rows.length) return <div style={{padding:24, color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>No funnel data available</div>
   if (!rows.length) return <div style={{padding:24, color:'#3D6358'}}>No funnel data available</div>
 
   const fmtN = (v: number) => v == null ? '—' : Number(Math.round(v)).toLocaleString()
