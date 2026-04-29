@@ -414,7 +414,7 @@ export async function GET() {
     // Carveout Summary
     const carveoutTypes = ['Bariatric Carve-Out', 'Multi Carve-Out', 'Voluntary'];
     const carveoutSummary = carveoutTypes.map(co => {
-      const clients = allClients.filter((r: any) => r.carveout === co && !r.is_total);
+      const clients = allClients.filter((r: any) => !r.is_total && ((r.carveout === co) || (co === 'Voluntary' && (!r.carveout || r.carveout === '—'))));
       const totals = (arr: any[], field: string) => arr.reduce((a, r) => a + (r[field] || 0), 0);
       return {
         carveout: co,
