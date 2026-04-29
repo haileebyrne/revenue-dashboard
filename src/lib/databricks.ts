@@ -3,7 +3,7 @@ const CACHE_TTL = 1000 * 60 * 30;
 
 async function pollStatement(host: string, token: string, statementId: string): Promise<any> {
   for (let i = 0; i < 60; i++) {
-    await new Promise(r => setTimeout(r, 3000));
+    await new Promise(r => setTimeout(r, 5000));
     const res = await fetch(`https://${host}/api/2.0/sql/statements/${statementId}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
@@ -12,7 +12,7 @@ async function pollStatement(host: string, token: string, statementId: string): 
     if (state === 'SUCCEEDED') return result;
     if (state === 'FAILED') throw new Error(result.status?.error?.message || 'Query failed');
   }
-  throw new Error('Query timed out after 90 seconds');
+  throw new Error('Query timed out after 300 seconds');
 }
 
 export async function queryDatabricks(sql: string, cacheKey: string) {
@@ -34,7 +34,7 @@ export async function queryDatabricks(sql: string, cacheKey: string) {
     body: JSON.stringify({
       warehouse_id: warehouseId,
       statement: sql,
-      wait_timeout: '120s',
+      wait_timeout: '0s',
     }),
   });
 
