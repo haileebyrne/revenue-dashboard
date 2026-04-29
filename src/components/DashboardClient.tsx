@@ -623,19 +623,22 @@ function RevenueWaterfall({ data }: { data: any }) {
   const fixedOther = 3.843
   const mb = (data.kpis as any)?.monthly_budget || {}
   const budM = (m: number) => mb[String(m)] ? (mb[String(m)] + 3172352 + 670908) / 1_000_000 : null
+
+  // Per-month PY revenue from totalRow (convert from $k to $M)
+  const py25 = (field: string) => totalRow?.[field] ? totalRow[field] / 1000 + fixedOther : null
+
   const months = [
-    { label: 'Jan',      value: totalRow?.rev26_jan ? totalRow.rev26_jan / 1000 + fixedOther : null, budget: budM(1) },
-    { label: 'Feb',      value: totalRow?.rev26_feb ? totalRow.rev26_feb / 1000 + fixedOther : null, budget: budM(2) },
-    { label: 'Mar',      value: totalRow?.rev26_mar ? totalRow.rev26_mar / 1000 + fixedOther : null, budget: budM(3) },
-    { label: 'Apr MTD',  value: mtd.actual_mtd || null, budget: mtd.budget_mtd || null },
-    { label: 'Apr Fcst', value: mtd.actual_eom || null, budget: mtd.budget_eom || null, forecast: true },
+    { label: 'Jan',      value: totalRow?.rev26_jan ? totalRow.rev26_jan / 1000 + fixedOther : null, budget: budM(1), py: py25('rev25_jan') },
+    { label: 'Feb',      value: totalRow?.rev26_feb ? totalRow.rev26_feb / 1000 + fixedOther : null, budget: budM(2), py: py25('rev25_feb') },
+    { label: 'Mar',      value: totalRow?.rev26_mar ? totalRow.rev26_mar / 1000 + fixedOther : null, budget: budM(3), py: py25('rev25_mar') },
+    { label: 'Apr MTD',  value: mtd.actual_mtd || null, budget: mtd.budget_mtd || null, py: py25('rev25_apr') },
+    { label: 'Apr Fcst', value: mtd.actual_eom || null, budget: mtd.budget_eom || null, py: mtd.py_eom || null, forecast: true },
   ]
 
-  const py = mtd.py_eom || null
-  const validVals = months.map(m => m.value).filter(v => v != null) as number[]
+  const validVals = months.flatMap(m => [m.value, m.py]).filter(v => v != null) as number[]
   if (!validVals.length) return null
 
-  const maxV = Math.max(...validVals, py || 0) * 1.25
+  const maxV = Math.max(...validVals) * 1.25
   const W = 620, H = 170, PAD_L = 52, PAD_R = 32, PAD_T = 28, PAD_B = 32
   const barW = 56
   const chartW = W - PAD_L - PAD_R
@@ -643,19 +646,27 @@ function RevenueWaterfall({ data }: { data: any }) {
   const spacing = chartW / months.length
   const toY = (v: number) => PAD_T + chartH - (v / maxV) * chartH
   const barX = (i: number) => PAD_L + i * spacing + (spacing - barW) / 2
+  const barMid = (i: number) => barX(i) + barW / 2
 
-  const TX = { fill: '#0D2B22', fontFamily: 'DM Sans, sans-serif' }
+  const TX  = { fill: '#0D2B22', fontFamily: 'DM Sans, sans-serif' }
   const TX2 = { fill: '#3D6358', fontFamily: 'DM Sans, sans-serif' }
+
+  // Build PY polyline points from per-month values
+  const pyPoints = months
+    .map((m, i) => m.py != null ? `${barMid(i)},${toY(m.py)}` : null)
+    .filter(Boolean).join(' ')
 
   return (
     <div style={{
-      margin: '0 24px 0',
+      margin: '12px 24px 0',
       background: '#ffffff',
       border: '1px solid #D4E4DF',
       borderRadius: 10,
       padding: '16px 16px 10px',
+      display: 'inline-block',
+      minWidth: 360,
     }}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', maxWidth:700, height:H, overflow:'visible', display:'block'}}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width: 620, height: H, overflow: 'visible', display: 'block'}}>
         {/* Grid lines */}
         {[0.25, 0.5, 0.75, 1].map(t => (
           <line key={t} x1={PAD_L} x2={W - PAD_R}
@@ -672,15 +683,17 @@ function RevenueWaterfall({ data }: { data: any }) {
             </text>
           )
         })}
-        {/* PY dashed line */}
-        {py && (
-          <g>
-            <line x1={PAD_L} x2={W - PAD_R - 20}
-              y1={toY(py)} y2={toY(py)}
-              stroke="#7A9E94" strokeWidth={1.5} strokeDasharray="5,3" />
-            <text x={W - PAD_R - 18} y={toY(py) - 4} fontSize={10} {...TX2}>PY</text>
-          </g>
+        {/* PY line — per month, not flat */}
+        {pyPoints && (
+          <polyline points={pyPoints}
+            fill="none" stroke="#7A9E94" strokeWidth={2}
+            strokeDasharray="5,3" strokeLinecap="round" strokeLinejoin="round" />
         )}
+        {/* PY dots */}
+        {months.map((m, i) => m.py != null ? (
+          <circle key={i} cx={barMid(i)} cy={toY(m.py)} r={3}
+            fill="#ffffff" stroke="#7A9E94" strokeWidth={1.5} />
+        ) : null)}
         {/* Bars */}
         {months.map((m, i) => {
           if (m.value == null) return null
@@ -690,7 +703,7 @@ function RevenueWaterfall({ data }: { data: any }) {
           const isFcst = (m as any).forecast
           const mBud = m.budget
           const fill = isFcst
-            ? 'rgba(26,107,85,0.25)'
+            ? 'rgba(26,107,85,0.2)'
             : (!mBud || m.value >= mBud) ? '#1A6B55'
             : m.value >= mBud * 0.95 ? '#2a9d6e'
             : '#C0392B'
@@ -702,11 +715,11 @@ function RevenueWaterfall({ data }: { data: any }) {
                   y1={toY(mBud)} y2={toY(mBud)}
                   stroke="#2563eb" strokeWidth={2} strokeLinecap="round" />
               )}
-              <text x={bx + barW / 2} y={by - 6}
+              <text x={barMid(i)} y={by - 6}
                 textAnchor="middle" fontSize={11} fontWeight="600" {...TX}>
                 ${m.value.toFixed(1)}M
               </text>
-              <text x={bx + barW / 2} y={H - PAD_B + 15}
+              <text x={barMid(i)} y={H - PAD_B + 15}
                 textAnchor="middle" fontSize={10} {...TX2}>
                 {m.label}
               </text>
@@ -717,10 +730,10 @@ function RevenueWaterfall({ data }: { data: any }) {
       {/* Legend */}
       <div style={{display:'flex', gap:20, paddingLeft:52, paddingTop:6}}>
         {([
-          { bg:'#1A6B55',               line:false, dash:false, label:'Actual' },
-          { bg:'rgba(26,107,85,0.25)',   line:false, dash:false, label:'Forecast' },
-          { bg:'#2563eb',               line:true,  dash:false, label:'Budget' },
-          { bg:'#7A9E94',               line:true,  dash:true,  label:'Prior Year' },
+          { bg:'#1A6B55',    line:false, dash:false, label:'Actual' },
+          { bg:'rgba(26,107,85,0.2)', line:false, dash:false, label:'Forecast' },
+          { bg:'#2563eb',    line:true,  dash:false, label:'Budget' },
+          { bg:'#7A9E94',    line:true,  dash:true,  label:'Prior Year' },
         ] as any[]).map(({ bg, line, dash, label }: any) => (
           <div key={label} style={{display:'flex', alignItems:'center', gap:5,
             fontSize:11, color:'#3D6358', fontFamily:'DM Sans, sans-serif'}}>
