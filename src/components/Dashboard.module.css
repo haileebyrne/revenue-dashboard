@@ -332,3 +332,12 @@ tfoot.sticky tr td { background: var(--cream-dark) !important; border-top: 2px s
   top: 0;
   z-index: 3;
 }
+
+/* Fix sticky header - second row needs offset */
+.th, .thEst {
+  top: 0;
+}
+thead tr:nth-child(2) .th,
+thead tr:nth-child(2) .thEst {
+  top: 33px;
+}

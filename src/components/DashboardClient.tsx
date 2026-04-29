@@ -342,31 +342,31 @@ function ClientTable({ rows }: { rows: any[] }) {
           </tr>
           <tr>
             {/* Procs 26 */}
-            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Jan</th>
-            <th className={`${styles.th} ${styles.right}`}>Feb</th>
-            <th className={`${styles.th} ${styles.right}`}>Mar</th>
-            <th className={`${styles.th} ${styles.right}`}>Apr MTD</th>
-            <th className={`${styles.thEst} ${styles.right}`}>Apr Est</th>
-            <th className={`${styles.th} ${styles.right}`}>YTD</th>
+            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)', top:33, top:33}}>Jan</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>Feb</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>Mar</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>Apr MTD</th>
+            <th className={`${styles.thEst} ${styles.right}`} style={{top:33}}>Apr Est</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>YTD</th>
             {/* Procs 25 */}
-            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Jan</th>
-            <th className={`${styles.th} ${styles.right}`}>Feb</th>
-            <th className={`${styles.th} ${styles.right}`}>Mar</th>
-            <th className={`${styles.th} ${styles.right}`}>Apr</th>
-            <th className={`${styles.th} ${styles.right}`}>YTD</th>
+            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)', top:33}}>Jan</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>Feb</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>Mar</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>Apr</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>YTD</th>
             {/* Rev 26 */}
-            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Jan</th>
-            <th className={`${styles.th} ${styles.right}`}>Feb</th>
-            <th className={`${styles.th} ${styles.right}`}>Mar</th>
-            <th className={`${styles.th} ${styles.right}`}>Apr MTD</th>
-            <th className={`${styles.thEst} ${styles.right}`}>Apr Est</th>
-            <th className={`${styles.th} ${styles.right}`}>YTD</th>
+            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)', top:33}}>Jan</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>Feb</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>Mar</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>Apr MTD</th>
+            <th className={`${styles.thEst} ${styles.right}`} style={{top:33}}>Apr Est</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>YTD</th>
             {/* Rev 25 */}
-            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)'}}>Jan</th>
-            <th className={`${styles.th} ${styles.right}`}>Feb</th>
-            <th className={`${styles.th} ${styles.right}`}>Mar</th>
-            <th className={`${styles.th} ${styles.right}`}>Apr</th>
-            <th className={`${styles.th} ${styles.right}`}>YTD</th>
+            <th className={`${styles.th} ${styles.right}`} style={{borderLeft:'2px solid rgba(245,237,217,0.3)', top:33}}>Jan</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>Feb</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>Mar</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>Apr</th>
+            <th className={`${styles.th} ${styles.right}`} style={{top:33}}>YTD</th>
           </tr>
         </thead>
         <tbody>
