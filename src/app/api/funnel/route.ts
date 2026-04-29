@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { queryDatabricks } from '@/lib/databricks';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 const CASES_QUERY = `
 SELECT
@@ -39,7 +40,6 @@ export async function GET() {
       queryDatabricks(MEMBERS_QUERY, 'funnel-members'),
     ]);
 
-    // Merge on yyyy_mm
     const memberMap: Record<string, number> = {}
     members.forEach((r: any) => { memberMap[r.yyyy_mm] = parseInt(r.unique_members_18) || 0 })
 
