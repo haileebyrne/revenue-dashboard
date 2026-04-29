@@ -34,7 +34,7 @@ export async function queryDatabricks(sql: string, cacheKey: string) {
     body: JSON.stringify({
       warehouse_id: warehouseId,
       statement: sql,
-      wait_timeout: '50s',
+      wait_timeout: '120s',
     }),
   });
 
