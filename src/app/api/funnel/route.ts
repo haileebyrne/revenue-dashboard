@@ -20,7 +20,7 @@ WHERE c.product_name <> 'Hinge Health'
   AND (c.case_status NOT IN ('Closed','Void') OR c.case_closed_date >= date_trunc('YEAR', add_months(current_date(), -36)))
 GROUP BY date_format(date_trunc('month', c.case_created_date), 'yyyy-MM')
 ORDER BY yyyy_mm
-\`;
+`;
 
 export async function GET() {
   try {
