@@ -477,7 +477,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
 function CarveoutTable({ rows }: { rows: any[] }) {
   if (!rows.length) return <div style={{padding:24}}>No carveout data</div>
   const fmtN = (v: any) => v == null ? '—' : Number(Math.round(v)).toLocaleString()
-  const fmtM = (v: any) => v == null ? '—' : `$${(v/1000).toFixed(0)}K`
+  const fmtM = (v: any) => v == null ? '—' : `$${(v/1000).toFixed(1)}M`
   const isTotal = (r: any) => r.carveout === 'Total'
 
   return (
