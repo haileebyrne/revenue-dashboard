@@ -651,11 +651,7 @@ function RevenueWaterfall({ data }: { data: any }) {
           const v = maxV * t
           return <text key={t} x={PAD_L - 4} y={toY(v) + 3} textAnchor="end" fontSize={8} fill="var(--text-3)">${v.toFixed(0)}M</text>
         })}
-        {/* Budget line */}
-        {budget && <>
-          <line x1={PAD_L} x2={W - PAD_R} y1={toY(budget)} y2={toY(budget)} stroke="#5b9bd5" strokeWidth={1} strokeDasharray="4,2" />
-          <text x={W - PAD_R + 2} y={toY(budget) + 3} fontSize={8} fill="#5b9bd5">Bud</text>
-        </>}
+
         {/* PY line */}
         {py && <>
           <line x1={PAD_L} x2={W - PAD_R} y1={toY(py)} y2={toY(py)} stroke="rgba(245,237,217,0.35)" strokeWidth={1} />
@@ -667,7 +663,8 @@ function RevenueWaterfall({ data }: { data: any }) {
           const bx = barX(i)
           const by = toY(m.value)
           const bh = H - PAD_B - by
-          const color = m.forecast ? 'rgba(26,107,85,0.4)' : (budget && m.value >= budget ? '#2a9d6e' : m.value >= (budget || 0) * 0.95 ? 'var(--teal-mid)' : '#e05252')
+          const mBud = (m as any).budget
+          const color = m.forecast ? 'rgba(26,107,85,0.4)' : (mBud && m.value >= mBud ? '#2a9d6e' : mBud && m.value >= mBud * 0.95 ? 'var(--teal-mid)' : mBud ? '#e05252' : 'var(--teal-mid)')
           return (
             <g key={i}>
               <rect x={bx} y={by} width={barW} height={bh} fill={color} rx={3} />

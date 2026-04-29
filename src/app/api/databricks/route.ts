@@ -245,6 +245,7 @@ export async function GET() {
     // Budget aggregation
     const budByName: Record<string, number> = {};        // YTD budget per client
     const fullYearBudByName: Record<string, number> = {}; // Full year budget (for Top 50)
+    const monthlyBudgetTotals: Record<number, number> = {}; // month -> total budget
     let curBudRev = 0; let ytdBudRev = 0;
     for (const r of budget) {
       const rev = parseFloat(r.surgery_care_revenue) || 0;
@@ -746,6 +747,7 @@ export async function GET() {
         apr_mtd_procedures_vs_py: null,
         apr_proc_forecast_vs_budget: null,
         ytd_procedures_vs_py: totalPriorProcs ? parseFloat(((totalYtdActProcs + totalEomProcs - totalPriorProcs) / totalPriorProcs * 100).toFixed(1)) : null,
+        monthly_budget: monthlyBudgetTotals,
         ytd_revenue_vs_py: (() => {
           // PY YTD = completed months from other_revenues + current month MTD estimate
           const pyYtdTotal = pyYtdOtherRev + (pyEomTotal * scaleDownFactor);
