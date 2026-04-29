@@ -464,10 +464,12 @@ export async function GET() {
       const dt = String(r.data_type || '');
       const cat = String(r.category || '');
 
-      // Prior year same month actuals
+      // Prior year same month actuals (exclude CCD and Infusions per Excel MTD tab)
       if (dt === 'actual' && ry === year - 1 && rm === month) {
+        const rt = String(r.revenue_type || '');
         if (cat === 'variable_fee') pyVarFeeRev += rev;
         else if (cat === 'fixed_fee') pyFixedFeeRev += rev;
+        else if (rt === 'CCD Fees' || rt === 'Infusions Fees') {} // exclude
         else pyOtherFeeRev += rev;
       }
       // Budget monthly
@@ -488,8 +490,8 @@ export async function GET() {
     const scaleDownFactor = curveAtToday; // = biz days progress (0-1)
     const fixedFeeMtd = fixedFeeEom * scaleDownFactor;
     const otherFeeMtd = otherFeeEom * scaleDownFactor;
-    const pyFixedMtd = pyFixedFeeRev > 0 ? pyFixedFeeRev : fixedFeeEom * scaleDownFactor;
-    const pyOtherMtd = pyOtherFeeRev > 0 ? pyOtherFeeRev : otherFeeEom * scaleDownFactor;
+    const pyFixedMtd = pyFixedFeeRev;  // PY actual fixed fee (full month)
+    const pyOtherMtd = pyOtherFeeRev;  // PY actual other fee (full month, excl CCD/Infusions)
 
     // Total MTD and EOM revenue ($M)
     const actVarMtd = totalScheduledRev;
@@ -501,7 +503,7 @@ export async function GET() {
     const actTotalEom = toM(actVarEom + fixedFeeEom + otherFeeEom);
 
     const pyTotalMtd = toM(pyMonthRev + pyFixedMtd + pyOtherMtd);
-    const pyTotalEom = toM(pyMonthRev + pyFixedMtd + pyOtherMtd); // PY full month
+    const pyTotalEom = toM(pyMonthRev + pyFixedMtd + pyOtherMtd); // PY full month actual
 
     // Use other_revenues table values directly - don't mix with curBudRev
     // Budget/OKR use Data Sources numbers (PEPM is in otherFeeRev, not fixed fee)
