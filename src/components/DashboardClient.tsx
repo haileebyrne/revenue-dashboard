@@ -670,6 +670,7 @@ function RevenueWaterfall({ data }: { data: any }) {
               <rect x={bx} y={by} width={barW} height={bh} fill={color} rx={3} />
               {(m as any).budget && <line x1={bx} x2={bx+barW} y1={toY((m as any).budget)} y2={toY((m as any).budget)} stroke="#5b9bd5" strokeWidth={2} />}
               <text x={bx + barW/2} y={by - 3} textAnchor="middle" fontSize={8.5} fill="var(--text-1)" fontWeight={600}>${m.value.toFixed(1)}M</text>
+              {(m as any).budget && <line x1={bx} x2={bx+barW} y1={toY((m as any).budget)} y2={toY((m as any).budget)} stroke="#5b9bd5" strokeWidth={2} strokeLinecap="round" />}
               <text x={bx + barW/2} y={H - PAD_B + 10} textAnchor="middle" fontSize={8} fill="var(--text-3)">{m.label}</text>
             </g>
           )
