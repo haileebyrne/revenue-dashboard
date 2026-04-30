@@ -802,15 +802,9 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
       <main className={styles.main}>
         <KpiRow kpis={data.kpis} />
         <div style={{display:'flex', alignItems:'stretch', flexWrap:'nowrap', gap:16, padding:'12px 24px 0', width:'100%', boxSizing:'border-box'}}>
-          <div style={{flex:'0 0 auto'}}>
-            <RevenueWaterfall data={data} />
-          </div>
-          <div style={{flex:'1 1 0', minWidth:0}}>
-            <Top5Clients data={data} />
-          </div>
-          <div style={{flex:'0 0 300px'}}>
-            <CumulProcChart data={data} />
-          </div>
+          <RevenueWaterfall data={data} />
+          <Top5Clients data={data} />
+          <CumulProcChart data={data} />
         </div>
         <div className={styles.tabs}>
           {([
