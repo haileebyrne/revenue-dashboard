@@ -126,7 +126,7 @@ export async function GET() {
 
       // 2024 procedure counts by month
       queryDatabricks(
-        \`SELECT MONTH(date_of_service) AS mo, COUNT(*) AS proc_count FROM datawarehouse.core.member_surgeries WHERE YEAR(date_of_service) = 2024 AND requested_procedure_item_category <> 'INFUSION' GROUP BY MONTH(date_of_service) ORDER BY mo\`,
+        "SELECT MONTH(date_of_service) AS mo, COUNT(*) AS proc_count FROM datawarehouse.core.member_surgeries WHERE YEAR(date_of_service) = 2024 AND requested_procedure_item_category <> 'INFUSION' GROUP BY MONTH(date_of_service) ORDER BY mo",
         'procs-2024'
       ),
       // Monthly aggregate funnel (2024-present) for Funnel tab
