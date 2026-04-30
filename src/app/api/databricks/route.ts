@@ -130,7 +130,7 @@ export async function GET() {
         WHERE YEAR(date_of_service) = ${year - 2}
           AND requested_procedure_item_category <> 'INFUSION'
         GROUP BY MONTH(date_of_service)`,
-        'surgeries-2024'
+        'surgeries-2024-v2'
       ),
 
 
@@ -808,7 +808,8 @@ export async function GET() {
 
     // 2024 from surgeries2024
     for (const r of surgeries2024) {
-      procsByYearMonth[yr2024][parseInt(r.m)] = parseInt(r.proc_count) || 0
+      const mo = parseInt(String(r.m)) || parseInt(String(r.mo))
+      if (mo) procsByYearMonth[yr2024][mo] = parseInt(r.proc_count) || 0
     }
 
     // 2026 from ytdSurgeries + curSurgeries
