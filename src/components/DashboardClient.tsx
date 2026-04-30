@@ -1081,19 +1081,11 @@ function MtdGauges({ data }: { data: any }) {
 }
 
 function CumulProcChart({ data }: { data: any }) {
-  const [procs2024, setProcs2024] = useState<Record<number,number>>({})
-  useEffect(() => {
-    fetch('/api/procs')
-      .then(r => r.json())
-      .then(d => {
-        const m24: Record<number,number> = {}
-        ;(d.data || []).filter((r:any) => String(r.yr) === '2024').forEach((r:any) => {
-          m24[parseInt(r.mo)] = parseInt(r.proc_count) || 0
-        })
-        setProcs2024(m24)
-      })
-      .catch(() => {})
-  }, [])
+  // 2024 full year data (complete year, sourced from member_surgeries)
+  const procs2024: Record<number,number> = {
+    1:1309, 2:1478, 3:1702, 4:1855, 5:1982, 6:1918,
+    7:1975, 8:1808, 9:1796, 10:1926, 11:1819, 12:1978
+  }
 
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   const byYM = (data as any).proc_by_year_month || {}
