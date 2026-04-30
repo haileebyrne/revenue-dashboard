@@ -1081,11 +1081,17 @@ function MtdGauges({ data }: { data: any }) {
 }
 
 function CumulProcChart({ data }: { data: any }) {
-  // 2024 full year data (complete year, sourced from member_surgeries)
-  const procs2024: Record<number,number> = {
+  // 2024 YTD data (Jan-Apr only, matching current YTD period)
+  const allProcs2024: Record<number,number> = {
     1:1309, 2:1478, 3:1702, 4:1855, 5:1982, 6:1918,
     7:1975, 8:1808, 9:1796, 10:1926, 11:1819, 12:1978
   }
+  // Only show months that exist in 2026 data (current YTD)
+  const currentMonths = Object.keys((data as any).proc_by_year_month?.['2026'] || {}).map(Number)
+  const maxMonth = currentMonths.length ? Math.max(...currentMonths) : 4
+  const procs2024: Record<number,number> = Object.fromEntries(
+    Object.entries(allProcs2024).filter(([m]) => parseInt(m) <= maxMonth)
+  )
 
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   const byYM = (data as any).proc_by_year_month || {}
