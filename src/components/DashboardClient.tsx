@@ -1162,9 +1162,10 @@ function CumulProcChart({ data }: { data: any }) {
 }
 
 function Top5Clients({ data }: { data: any }) {
+  const normalizeEes = (v: any) => { const n = parseFloat(v) || 0; return n < 1000 ? n * 1000 : n }
   const rows = ((data.top50 || []) as any[])
-    .filter((r: any) => !r.is_total && r.client_name !== 'Total Surgery Care Revenue' && (r.fee_structure || '').toLowerCase().includes('variable'))
-    .sort((a: any, b: any) => (b.ees ?? 0) - (a.ees ?? 0))
+    .filter((r: any) => !r.is_total && r.client_name !== 'Total Surgery Care Revenue')
+    .sort((a: any, b: any) => normalizeEes(b.ees) - normalizeEes(a.ees))
     .slice(0, 5)
 
   if (!rows.length) return null
