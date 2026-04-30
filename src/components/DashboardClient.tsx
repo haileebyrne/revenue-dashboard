@@ -799,8 +799,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
           </span>
         </div>
       </header>
-      <main className={styles.main} >
-        <div style={{flexShrink:0}}>
+      <main className={styles.main}>
         <KpiRow kpis={data.kpis} />
         <div style={{display:'flex', alignItems:'stretch', flexWrap:'nowrap', gap:16, padding:'12px 24px 0', width:'100%', boxSizing:'border-box'}}>
           <div style={{flex:'0 0 auto'}}>
@@ -812,7 +811,6 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
           <div style={{flex:'1 1 280px', minWidth:0}}>
             <CumulProcChart data={data} />
           </div>
-        </div>
         </div>
         <div className={styles.tabs}>
           {([
