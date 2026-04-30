@@ -801,7 +801,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
       </header>
       <main className={styles.main}>
         <KpiRow kpis={data.kpis} />
-        <div style={{display:'flex', alignItems:'stretch', flexWrap:'wrap', gap:16, padding:'12px 24px 0'}}>
+        <div style={{display:'flex', alignItems:'stretch', flexWrap:'nowrap', gap:16, padding:'12px 24px 0', width:'100%', boxSizing:'border-box'}}>
           <RevenueWaterfall data={data} />
           <div style={{flex:1, minWidth:400}}>
             <Top5Clients data={data} />
@@ -1129,14 +1129,14 @@ function CumulProcChart({ data }: { data: any }) {
       <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', height:H, display:'block'}}>
         {[0.25,0.5,0.75,1].map(t => <line key={t} x1={PAD_L} x2={W-PAD_R} y1={yp(maxV*t)} y2={yp(maxV*t)} stroke="#E8F2EF" strokeWidth={0.5} />)}
         {[0.5,1].map(t => <text key={t} x={PAD_L-4} y={yp(maxV*t)+4} textAnchor="end" fontSize={8} fill="#7A9E94" fontFamily="DM Sans, sans-serif">{fmtK(maxV*t)}</text>)}
-        {linePath(data24, '#D4E4DF', '4,3')}
+        {linePath(data24, '#A0C4B8', '4,3')}
         {linePath(data25, '#7AB5A0')}
         {linePath(data26, '#0B4F3E')}
         {data26.map((v, i) => v == null ? null : <circle key={i} cx={xp(i)} cy={yp(v)} r={2.5} fill="#0B4F3E" />)}
         {months.map((m, i) => <text key={m} x={xp(i)} y={H-4} textAnchor="middle" fontSize={7.5} fill="#7A9E94" fontFamily="DM Sans, sans-serif">{m}</text>)}
       </svg>
       <div style={{display:'flex', gap:16, marginTop:4, fontFamily:'DM Sans, sans-serif', fontSize:10, color:'#3D6358'}}>
-        <span><span style={{display:'inline-block', width:14, height:2, background:'#D4E4DF', marginRight:3, verticalAlign:'middle'}}></span>2024</span>
+        <span><span style={{display:'inline-block', width:14, height:2, background:'#A0C4B8', marginRight:3, verticalAlign:'middle'}}></span>2024</span>
         <span><span style={{display:'inline-block', width:14, height:2, background:'#7AB5A0', marginRight:3, verticalAlign:'middle'}}></span>2025</span>
         <span><span style={{display:'inline-block', width:14, height:2, background:'#0B4F3E', marginRight:3, verticalAlign:'middle'}}></span>2026</span>
       </div>
