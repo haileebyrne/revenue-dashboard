@@ -1076,6 +1076,91 @@ function MtdGauges({ data }: { data: any }) {
   )
 }
 
+function CumulProcChart({ data }: { data: any }) {
+  const top50 = (data.top50 || []) as any[]
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const monthKeys25 = ['proc25_jan','proc25_feb','proc25_mar','proc25_apr','proc25_may','proc25_jun','proc25_jul','proc25_aug','proc25_sep','proc25_oct','proc25_nov','proc25_dec']
+  const monthKeys26 = ['proc26_jan','proc26_feb','proc26_mar','proc26_apr','proc26_may','proc26_jun','proc26_jul','proc26_aug','proc26_sep','proc26_oct','proc26_nov','proc26_dec']
+  const monthKeys24 = ['proc24_jan','proc24_feb','proc24_mar','proc24_apr','proc24_may','proc24_jun','proc24_jul','proc24_aug','proc24_sep','proc24_oct','proc24_nov','proc24_dec']
+
+  // Build cumulative totals per month
+  const cumul = (keys: string[]) => {
+    let sum = 0
+    return keys.map(k => {
+      const v = top50.filter((r:any) => !r.is_total).reduce((s:number, r:any) => s + (parseFloat(r[k]) || 0), 0)
+      if (v === 0) return null
+      sum += v
+      return sum
+    })
+  }
+
+  const data24 = cumul(monthKeys24)
+  const data25 = cumul(monthKeys25)
+  const data26 = cumul(monthKeys26)
+
+  const allVals = [...data24, ...data25, ...data26].filter(v => v != null) as number[]
+  if (!allVals.length) return null
+
+  const W = 420, H = 160, PAD_L = 40, PAD_R = 16, PAD_T = 16, PAD_B = 24
+  const maxV = Math.max(...allVals) * 1.1
+  const xStep = (W - PAD_L - PAD_R) / 11
+  const x = (i: number) => PAD_L + i * xStep
+  const y = (v: number) => PAD_T + (1 - v / maxV) * (H - PAD_T - PAD_B)
+  const fmtK = (v: number) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : `${Math.round(v)}`
+
+  const line = (pts: (number|null)[], stroke: string, dash?: string) => {
+    const segs: string[] = []
+    let path = ''
+    pts.forEach((v, i) => {
+      if (v == null) return
+      const px = x(i), py = y(v)
+      path += path === '' ? `M${px},${py}` : ` L${px},${py}`
+    })
+    return path ? <path d={path} fill="none" stroke={stroke} strokeWidth={2} strokeDasharray={dash} /> : null
+  }
+
+  return (
+    <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, padding:'14px 16px 10px', flex:1}}>
+      <div style={{fontSize:11, fontWeight:600, color:'#3D6358', marginBottom:10, fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em'}}>
+        Cumulative YTD Procedures
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', height:H, display:'block'}}>
+        {/* Grid lines */}
+        {[0.25,0.5,0.75,1].map(t => (
+          <line key={t} x1={PAD_L} x2={W-PAD_R} y1={y(maxV*t)} y2={y(maxV*t)}
+            stroke="#E8F2EF" strokeWidth={0.5} />
+        ))}
+        {/* Y axis labels */}
+        {[0.5,1].map(t => (
+          <text key={t} x={PAD_L-4} y={y(maxV*t)+4} textAnchor="end"
+            fontSize={8} fill="#7A9E94" fontFamily="DM Sans, sans-serif">
+            {fmtK(maxV*t)}
+          </text>
+        ))}
+        {/* Lines */}
+        {line(data24, '#D4E4DF', '4,3')}
+        {line(data25, '#7AB5A0')}
+        {line(data26, '#0B4F3E')}
+        {/* Dots for 2026 */}
+        {data26.map((v, i) => v == null ? null : (
+          <circle key={i} cx={x(i)} cy={y(v)} r={3} fill="#0B4F3E" />
+        ))}
+        {/* X axis labels */}
+        {months.map((m, i) => (
+          <text key={m} x={x(i)} y={H-4} textAnchor="middle"
+            fontSize={8} fill="#7A9E94" fontFamily="DM Sans, sans-serif">{m}</text>
+        ))}
+      </svg>
+      {/* Legend */}
+      <div style={{display:'flex', gap:16, marginTop:6, fontFamily:'DM Sans, sans-serif', fontSize:10, color:'#3D6358'}}>
+        <span><span style={{display:'inline-block', width:16, height:2, background:'#D4E4DF', marginRight:4, verticalAlign:'middle'}}></span>2024</span>
+        <span><span style={{display:'inline-block', width:16, height:2, background:'#7AB5A0', marginRight:4, verticalAlign:'middle'}}></span>2025</span>
+        <span><span style={{display:'inline-block', width:16, height:2, background:'#0B4F3E', marginRight:4, verticalAlign:'middle'}}></span>2026</span>
+      </div>
+    </div>
+  )
+}
+
 function Top5Clients({ data }: { data: any }) {
   const rows = ((data.top50 || []) as any[])
     .filter((r: any) => !r.is_total && r.client_name !== 'Total Surgery Care Revenue' && (r.fee_structure || '').toLowerCase().includes('variable'))
