@@ -784,7 +784,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
         <div className={styles.headerRight}>
           {(data as any).meta && (
             <span className={styles.sourceTag}>
-              Biz day {(data as any).meta.business_day}/{(data as any).meta.total_biz_days} · {((data as any).meta.curve_at_today * 100).toFixed(1)}% scheduled
+              Biz day {(data as any).meta.business_day}/{(data as any).meta.total_biz_days} · {((data as any).meta.business_day >= (data as any).meta.total_biz_days ? 100 : ((data as any).meta.curve_at_today * 100)).toFixed(1)}% scheduled
             </span>
           )}
           <span className={styles.sourceTag}>
@@ -803,8 +803,10 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
         <KpiRow kpis={data.kpis} />
         <div style={{display:'flex', alignItems:'stretch', flexWrap:'wrap', gap:16, padding:'12px 24px 0'}}>
           <RevenueWaterfall data={data} />
-          <Top5Clients data={data} />
-          <div style={{flex:1, minWidth:280}}>
+          <div style={{flex:'0 0 420px'}}>
+            <Top5Clients data={data} />
+          </div>
+          <div style={{flex:'0 0 320px'}}>
             <CumulProcChart data={data} />
           </div>
         </div>
@@ -1077,89 +1079,93 @@ function MtdGauges({ data }: { data: any }) {
 }
 
 function CumulProcChart({ data }: { data: any }) {
-  const top50 = (data.top50 || []) as any[]
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  const monthKeys25 = ['procs25_jan','procs25_feb','procs25_mar','procs25_apr','procs25_may','procs25_jun','procs25_jul','procs25_aug','procs25_sep','procs25_oct','procs25_nov','procs25_dec']
-  const monthKeys26 = ['procs26_jan','procs26_feb','procs26_mar','procs26_apr','procs26_may','procs26_jun','procs26_jul','procs26_aug','procs26_sep','procs26_oct','procs26_nov','procs26_dec']
-  const monthKeys24 = ['procs24_jan','procs24_feb','procs24_mar','procs24_apr','procs24_may','procs24_jun','procs24_jul','procs24_aug','procs24_sep','procs24_oct','procs24_nov','procs24_dec']
+  const [procRows, setProcRows] = useState<any[]>([])
+  useEffect(() => {
+    fetch('/api/procs').then(r => r.json()).then(d => setProcRows(d.data || []))
+  }, [])
 
-  // Build cumulative totals per month
-  const cumul = (keys: string[]) => {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+  const byYearMonth: Record<string, Record<number, number>> = {}
+  procRows.forEach((r: any) => {
+    const yr = String(r.yr)
+    const mo = parseInt(r.mo)
+    if (!byYearMonth[yr]) byYearMonth[yr] = {}
+    byYearMonth[yr][mo] = parseInt(r.proc_count) || 0
+  })
+
+  const cumul = (yr: string): (number|null)[] => {
     let sum = 0
-    return keys.map(k => {
-      const v = top50.filter((r:any) => !r.is_total).reduce((s:number, r:any) => s + (parseFloat(r[k]) || 0), 0)
-      if (v === 0) return null
+    let started = false
+    return Array.from({length:12}, (_,i) => {
+      const v = byYearMonth[yr]?.[i+1]
+      if (v == null && !started) return null
+      if (v == null) return null
+      started = true
       sum += v
       return sum
     })
   }
 
-  const data24 = cumul(monthKeys24)
-  const data25 = cumul(monthKeys25)
-  const data26 = cumul(monthKeys26)
+  const data24 = cumul('2024')
+  const data25 = cumul('2025')
+  const data26 = cumul('2026')
+  const allVals = [...data24, ...data25, ...data26].filter((v): v is number => v != null)
 
-  const allVals = [...data24, ...data25, ...data26].filter(v => v != null) as number[]
-  if (!allVals.length) return null
+  if (!allVals.length) return (
+    <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, padding:'14px 16px 10px'}}>
+      <div style={{fontSize:11, fontWeight:600, color:'#3D6358', fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8}}>Cumul. YTD Procedures</div>
+      <div style={{fontSize:11, color:'#9CA3AF', fontFamily:'DM Sans, sans-serif'}}>Loading...</div>
+    </div>
+  )
 
-  const W = 420, H = 160, PAD_L = 40, PAD_R = 16, PAD_T = 16, PAD_B = 24
+  const W = 300, H = 150, PAD_L = 36, PAD_R = 12, PAD_T = 12, PAD_B = 22
   const maxV = Math.max(...allVals) * 1.1
   const xStep = (W - PAD_L - PAD_R) / 11
-  const x = (i: number) => PAD_L + i * xStep
-  const y = (v: number) => PAD_T + (1 - v / maxV) * (H - PAD_T - PAD_B)
+  const xp = (i: number) => PAD_L + i * xStep
+  const yp = (v: number) => PAD_T + (1 - v / maxV) * (H - PAD_T - PAD_B)
   const fmtK = (v: number) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : `${Math.round(v)}`
 
-  const line = (pts: (number|null)[], stroke: string, dash?: string) => {
-    const segs: string[] = []
+  const linePath = (pts: (number|null)[], stroke: string, dash?: string) => {
     let path = ''
     pts.forEach((v, i) => {
       if (v == null) return
-      const px = x(i), py = y(v)
-      path += path === '' ? `M${px},${py}` : ` L${px},${py}`
+      path += path === '' ? `M${xp(i)},${yp(v)}` : ` L${xp(i)},${yp(v)}`
     })
     return path ? <path d={path} fill="none" stroke={stroke} strokeWidth={2} strokeDasharray={dash} /> : null
   }
 
   return (
-    <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, padding:'14px 16px 10px', flex:1}}>
-      <div style={{fontSize:11, fontWeight:600, color:'#3D6358', marginBottom:10, fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em'}}>
+    <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, padding:'14px 16px 10px', height:'100%', boxSizing:'border-box'}}>
+      <div style={{fontSize:11, fontWeight:600, color:'#3D6358', marginBottom:8, fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em'}}>
         Cumul. YTD Procedures
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', height:H, display:'block'}}>
-        {/* Grid lines */}
         {[0.25,0.5,0.75,1].map(t => (
-          <line key={t} x1={PAD_L} x2={W-PAD_R} y1={y(maxV*t)} y2={y(maxV*t)}
-            stroke="#E8F2EF" strokeWidth={0.5} />
+          <line key={t} x1={PAD_L} x2={W-PAD_R} y1={yp(maxV*t)} y2={yp(maxV*t)} stroke="#E8F2EF" strokeWidth={0.5} />
         ))}
-        {/* Y axis labels */}
         {[0.5,1].map(t => (
-          <text key={t} x={PAD_L-4} y={y(maxV*t)+4} textAnchor="end"
-            fontSize={8} fill="#7A9E94" fontFamily="DM Sans, sans-serif">
-            {fmtK(maxV*t)}
-          </text>
+          <text key={t} x={PAD_L-4} y={yp(maxV*t)+4} textAnchor="end" fontSize={8} fill="#7A9E94" fontFamily="DM Sans, sans-serif">{fmtK(maxV*t)}</text>
         ))}
-        {/* Lines */}
-        {line(data24, '#D4E4DF', '4,3')}
-        {line(data25, '#7AB5A0')}
-        {line(data26, '#0B4F3E')}
-        {/* Dots for 2026 */}
+        {linePath(data24, '#D4E4DF', '4,3')}
+        {linePath(data25, '#7AB5A0')}
+        {linePath(data26, '#0B4F3E')}
         {data26.map((v, i) => v == null ? null : (
-          <circle key={i} cx={x(i)} cy={y(v)} r={3} fill="#0B4F3E" />
+          <circle key={i} cx={xp(i)} cy={yp(v)} r={2.5} fill="#0B4F3E" />
         ))}
-        {/* X axis labels */}
         {months.map((m, i) => (
-          <text key={m} x={x(i)} y={H-4} textAnchor="middle"
-            fontSize={8} fill="#7A9E94" fontFamily="DM Sans, sans-serif">{m}</text>
+          <text key={m} x={xp(i)} y={H-4} textAnchor="middle" fontSize={7.5} fill="#7A9E94" fontFamily="DM Sans, sans-serif">{m}</text>
         ))}
       </svg>
-      {/* Legend */}
-      <div style={{display:'flex', gap:16, marginTop:6, fontFamily:'DM Sans, sans-serif', fontSize:10, color:'#3D6358'}}>
-        <span><span style={{display:'inline-block', width:16, height:2, background:'#D4E4DF', marginRight:4, verticalAlign:'middle'}}></span>2024</span>
-        <span><span style={{display:'inline-block', width:16, height:2, background:'#7AB5A0', marginRight:4, verticalAlign:'middle'}}></span>2025</span>
-        <span><span style={{display:'inline-block', width:16, height:2, background:'#0B4F3E', marginRight:4, verticalAlign:'middle'}}></span>2026</span>
+      <div style={{display:'flex', gap:12, marginTop:4, fontFamily:'DM Sans, sans-serif', fontSize:10, color:'#3D6358'}}>
+        <span><span style={{display:'inline-block', width:14, height:2, background:'#D4E4DF', marginRight:3, verticalAlign:'middle'}}></span>2024</span>
+        <span><span style={{display:'inline-block', width:14, height:2, background:'#7AB5A0', marginRight:3, verticalAlign:'middle'}}></span>2025</span>
+        <span><span style={{display:'inline-block', width:14, height:2, background:'#0B4F3E', marginRight:3, verticalAlign:'middle'}}></span>2026</span>
       </div>
     </div>
   )
 }
+
 
 function Top5Clients({ data }: { data: any }) {
   const cleanEes = (v: any) => parseFloat(String(v || '0').replace(/[^0-9.]/g, '')) || 0
