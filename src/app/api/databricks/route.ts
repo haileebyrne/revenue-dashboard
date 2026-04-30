@@ -53,7 +53,7 @@ export async function GET() {
     const curveAtToday = SCHEDULING_CURVE[currentBizDay] || 0.85;
     const scaleUpFactor = curveAtToday > 0 ? 1 / curveAtToday : 1;
 
-    const [actual, budget, inputs, curSurgeries, ytdSurgeries, priorSurgeries, otherRevenues, monthlyFunnel, funnel] = await Promise.all([
+    const [actual, budget, inputs, curSurgeries, ytdSurgeries, priorSurgeries, otherRevenues, monthlyFunnel, funnel, surgeries2024] = await Promise.all([
 
       // Actual revenues (all historical)
       queryDatabricks(
@@ -122,6 +122,15 @@ export async function GET() {
         `SELECT revenue_month, revenue_type, category, amount, data_type
         FROM sandboxwarehouse.growth_analytics.other_revenues`,
         'other-rev'
+      ),
+      // 2024 full year surgeries by month
+      queryDatabricks(
+        `SELECT MONTH(date_of_service) AS m, COUNT(DISTINCT service_id) AS proc_count
+        FROM datawarehouse.core.member_surgeries
+        WHERE YEAR(date_of_service) = ${year - 2}
+          AND requested_procedure_item_category <> 'INFUSION'
+        GROUP BY MONTH(date_of_service)`,
+        'surgeries-2024'
       ),
 
 
@@ -783,13 +792,33 @@ export async function GET() {
       }
     }
 
-    // Build proc totals by month
-    const procsByYearMonth: Record<string, Record<number, number>> = { '2025': {}, '2024': {} }
+    // Build proc totals by month for chart
+    const yr2024 = String(year - 2)
+    const yr2025 = String(year - 1)
+    const yr2026 = String(year)
+    const procsByYearMonth: Record<string, Record<number, number>> = { [yr2024]: {}, [yr2025]: {}, [yr2026]: {} }
+
+    // 2025 from priorProcByClient
     for (const clientMonths of Object.values(priorProcByClient)) {
       for (const [mo, cnt] of Object.entries(clientMonths)) {
         const m = parseInt(mo)
-        procsByYearMonth['2025'][m] = (procsByYearMonth['2025'][m] || 0) + cnt
+        procsByYearMonth[yr2025][m] = (procsByYearMonth[yr2025][m] || 0) + cnt
       }
+    }
+
+    // 2024 from surgeries2024
+    for (const r of surgeries2024) {
+      procsByYearMonth[yr2024][parseInt(r.m)] = parseInt(r.proc_count) || 0
+    }
+
+    // 2026 from ytdSurgeries + curSurgeries
+    const ytdProcByMonth: Record<number, number> = {}
+    for (const r of ytdSurgeries) {
+      ytdProcByMonth[parseInt(r.m)] = (ytdProcByMonth[parseInt(r.m)] || 0) + (parseInt(r.proc_count) || 0)
+    }
+    ytdProcByMonth[month] = totalScheduledProcs
+    for (const [mo, cnt] of Object.entries(ytdProcByMonth)) {
+      procsByYearMonth[yr2026][parseInt(mo)] = cnt
     }
 
 
