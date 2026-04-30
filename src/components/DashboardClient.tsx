@@ -831,7 +831,6 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
         {tab === 'cohort'  && <CohortTable rows={cohort2026} />}
         {tab === 'mtd'     && <MtdPerformance data={mtdData} />}
         {tab === 'carveout' && <CarveoutTable rows={(data as any).carveoutSummary || []} />}
-        </div>
       </main>
     </div>
   )
