@@ -818,6 +818,7 @@ export async function GET() {
         })(),
       },
       top50: allWithTotal,
+      proc_by_year_month: procsByYearMonth,
       top50_only: top50,
       cohort,
       carveoutSummary,
