@@ -53,7 +53,7 @@ export async function GET() {
     const curveAtToday = SCHEDULING_CURVE[currentBizDay] || 0.85;
     const scaleUpFactor = curveAtToday > 0 ? 1 / curveAtToday : 1;
 
-    const [actual, budget, inputs, curSurgeries, ytdSurgeries, priorSurgeries, otherRevenues, monthlyFunnel, funnel, procs2024] = await Promise.all([
+    const [actual, budget, inputs, curSurgeries, ytdSurgeries, priorSurgeries, otherRevenues, monthlyFunnel, funnel] = await Promise.all([
 
       // Actual revenues (all historical)
       queryDatabricks(
@@ -124,11 +124,7 @@ export async function GET() {
         'other-rev'
       ),
 
-      // 2024 procedure counts by month
-      queryDatabricks(
-        "SELECT MONTH(date_of_service) AS mo, COUNT(*) AS proc_count FROM datawarehouse.core.member_surgeries WHERE YEAR(date_of_service) = 2024 AND requested_procedure_item_category <> 'INFUSION' GROUP BY MONTH(date_of_service) ORDER BY mo",
-        'procs-2024'
-      ),
+
       // Monthly aggregate funnel (2024-present) for Funnel tab
       queryDatabricks(
         `WITH all_cases AS (
@@ -795,9 +791,7 @@ export async function GET() {
         procsByYearMonth['2025'][m] = (procsByYearMonth['2025'][m] || 0) + cnt
       }
     }
-    for (const r of procs2024) {
-      procsByYearMonth['2024'][parseInt(r.mo)] = parseInt(r.proc_count) || 0
-    }
+
 
     return NextResponse.json({
       source: 'databricks',
