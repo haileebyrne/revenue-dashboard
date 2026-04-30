@@ -803,10 +803,10 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
         <KpiRow kpis={data.kpis} />
         <div style={{display:'flex', alignItems:'stretch', flexWrap:'wrap', gap:16, padding:'12px 24px 0'}}>
           <RevenueWaterfall data={data} />
-          <div style={{flex:'0 0 420px'}}>
+          <div style={{flex:'0 0 380px'}}>
             <Top5Clients data={data} />
           </div>
-          <div style={{flex:'0 0 320px'}}>
+          <div style={{flex:1, minWidth:320}}>
             <CumulProcChart data={data} />
           </div>
         </div>
@@ -1079,41 +1079,42 @@ function MtdGauges({ data }: { data: any }) {
 }
 
 function CumulProcChart({ data }: { data: any }) {
+  const [procRows, setProcRows] = useState<any[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/procs')
+      .then(r => r.json())
+      .then(d => { setProcRows(d.data || []); setLoaded(true) })
+      .catch(() => setLoaded(true))
+  }, [])
+
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  const clients = ((data.top50 || []) as any[]).filter((r:any) => !r.is_total)
 
-  const sumField = (key: string) => clients.reduce((s:number, r:any) => s + (parseFloat(r[key]) || 0), 0)
+  const byYearMonth: Record<string, Record<number, number>> = {}
+  procRows.forEach((r: any) => {
+    const yr = String(r.yr)
+    const mo = parseInt(r.mo)
+    if (!byYearMonth[yr]) byYearMonth[yr] = {}
+    byYearMonth[yr][mo] = parseInt(r.proc_count) || 0
+  })
 
-  const mk25 = ['procs25_jan','procs25_feb','procs25_mar','procs25_apr','procs25_may','procs25_jun','procs25_jul','procs25_aug','procs25_sep','procs25_oct','procs25_nov','procs25_dec']
-  const mk26 = ['procs26_jan','procs26_feb','procs26_mar','procs26_apr_mtd',null,null,null,null,null,null,null,null]
-
-  const cumulArr = (keys: (string|null)[]) => {
+  const cumul = (yr: string): (number|null)[] => {
     let sum = 0
-    return keys.map(k => {
-      if (!k) return null
-      const v = sumField(k)
-      if (!v && sum === 0) return null
+    return Array.from({length: 12}, (_, i) => {
+      const v = byYearMonth[yr]?.[i + 1]
+      if (v == null) return sum > 0 ? null : null
       sum += v
-      return sum > 0 ? sum : null
+      return sum
     })
   }
 
-  const data25 = cumulArr(mk25)
-  const data26 = cumulArr(mk26)
-  const data24: (number|null)[] = [1309,2787,4489,6344,8326,10244,12219,14027,15823,17749,19568,21546]
-    .map((v,i) => v)
+  const data24 = cumul('2024')
+  const data25 = cumul('2025')
+  const allVals = [...data24, ...data25].filter((v): v is number => v != null)
 
-  const allVals = [...data24, ...data25, ...data26].filter((v): v is number => v != null)
-
-  if (!allVals.length) return (
-    <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, padding:'14px 16px 10px'}}>
-      <div style={{fontSize:11, fontWeight:600, color:'#3D6358', fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8}}>Cumul. YTD Procedures</div>
-      <div style={{fontSize:11, color:'#9CA3AF', fontFamily:'DM Sans, sans-serif'}}>Loading...</div>
-    </div>
-  )
-
-  const W = 300, H = 150, PAD_L = 36, PAD_R = 12, PAD_T = 12, PAD_B = 22
-  const maxV = Math.max(...allVals) * 1.1
+  const W = 420, H = 150, PAD_L = 40, PAD_R = 16, PAD_T = 12, PAD_B = 22
+  const maxV = allVals.length ? Math.max(...allVals) * 1.1 : 1
   const xStep = (W - PAD_L - PAD_R) / 11
   const xp = (i: number) => PAD_L + i * xStep
   const yp = (v: number) => PAD_T + (1 - v / maxV) * (H - PAD_T - PAD_B)
@@ -1133,28 +1134,34 @@ function CumulProcChart({ data }: { data: any }) {
       <div style={{fontSize:11, fontWeight:600, color:'#3D6358', marginBottom:8, fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em'}}>
         Cumul. YTD Procedures
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', height:H, display:'block'}}>
-        {[0.25,0.5,0.75,1].map(t => (
-          <line key={t} x1={PAD_L} x2={W-PAD_R} y1={yp(maxV*t)} y2={yp(maxV*t)} stroke="#E8F2EF" strokeWidth={0.5} />
-        ))}
-        {[0.5,1].map(t => (
-          <text key={t} x={PAD_L-4} y={yp(maxV*t)+4} textAnchor="end" fontSize={8} fill="#7A9E94" fontFamily="DM Sans, sans-serif">{fmtK(maxV*t)}</text>
-        ))}
-        {linePath(data24, '#D4E4DF', '4,3')}
-        {linePath(data25, '#7AB5A0')}
-        {linePath(data26, '#0B4F3E')}
-        {data26.map((v, i) => v == null ? null : (
-          <circle key={i} cx={xp(i)} cy={yp(v)} r={2.5} fill="#0B4F3E" />
-        ))}
-        {months.map((m, i) => (
-          <text key={m} x={xp(i)} y={H-4} textAnchor="middle" fontSize={7.5} fill="#7A9E94" fontFamily="DM Sans, sans-serif">{m}</text>
-        ))}
-      </svg>
-      <div style={{display:'flex', gap:12, marginTop:4, fontFamily:'DM Sans, sans-serif', fontSize:10, color:'#3D6358'}}>
-        <span><span style={{display:'inline-block', width:14, height:2, background:'#D4E4DF', marginRight:3, verticalAlign:'middle'}}></span>2024</span>
-        <span><span style={{display:'inline-block', width:14, height:2, background:'#7AB5A0', marginRight:3, verticalAlign:'middle'}}></span>2025</span>
-        <span><span style={{display:'inline-block', width:14, height:2, background:'#0B4F3E', marginRight:3, verticalAlign:'middle'}}></span>2026</span>
-      </div>
+      {!loaded ? (
+        <div style={{fontSize:11, color:'#9CA3AF', fontFamily:'DM Sans, sans-serif', padding:'20px 0'}}>Loading...</div>
+      ) : !allVals.length ? (
+        <div style={{fontSize:11, color:'#9CA3AF', fontFamily:'DM Sans, sans-serif', padding:'20px 0'}}>No data</div>
+      ) : (
+        <>
+          <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', height:H, display:'block'}}>
+            {[0.25,0.5,0.75,1].map(t => (
+              <line key={t} x1={PAD_L} x2={W-PAD_R} y1={yp(maxV*t)} y2={yp(maxV*t)} stroke="#E8F2EF" strokeWidth={0.5} />
+            ))}
+            {[0.5,1].map(t => (
+              <text key={t} x={PAD_L-4} y={yp(maxV*t)+4} textAnchor="end" fontSize={8} fill="#7A9E94" fontFamily="DM Sans, sans-serif">{fmtK(maxV*t)}</text>
+            ))}
+            {linePath(data24, '#7AB5A0', '4,3')}
+            {linePath(data25, '#0B4F3E')}
+            {data25.map((v, i) => v == null ? null : (
+              <circle key={i} cx={xp(i)} cy={yp(v)} r={2.5} fill="#0B4F3E" />
+            ))}
+            {months.map((m, i) => (
+              <text key={m} x={xp(i)} y={H-4} textAnchor="middle" fontSize={7.5} fill="#7A9E94" fontFamily="DM Sans, sans-serif">{m}</text>
+            ))}
+          </svg>
+          <div style={{display:'flex', gap:16, marginTop:4, fontFamily:'DM Sans, sans-serif', fontSize:10, color:'#3D6358'}}>
+            <span><span style={{display:'inline-block', width:14, height:2, background:'#7AB5A0', marginRight:3, verticalAlign:'middle', borderTop:'2px dashed #7AB5A0', background:'none'}}></span>2024</span>
+            <span><span style={{display:'inline-block', width:14, height:2, background:'#0B4F3E', marginRight:3, verticalAlign:'middle'}}></span>2025</span>
+          </div>
+        </>
+      )}
     </div>
   )
 }
