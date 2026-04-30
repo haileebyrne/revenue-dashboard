@@ -1139,8 +1139,6 @@ function CumulProcChart({ data }: { data: any }) {
         <span><span style={{display:'inline-block', width:14, height:2, background:'#D4E4DF', marginRight:3, verticalAlign:'middle'}}></span>2024</span>
         <span><span style={{display:'inline-block', width:14, height:2, background:'#7AB5A0', marginRight:3, verticalAlign:'middle'}}></span>2025</span>
         <span><span style={{display:'inline-block', width:14, height:2, background:'#0B4F3E', marginRight:3, verticalAlign:'middle'}}></span>2026</span>
-        <span><span style={{display:'inline-block', width:14, height:2, background:'#7AB5A0', marginRight:3, verticalAlign:'middle'}}></span>2025</span>
-        <span><span style={{display:'inline-block', width:14, height:2, background:'#0B4F3E', marginRight:3, verticalAlign:'middle'}}></span>2026</span>
       </div>
     </div>
   )
