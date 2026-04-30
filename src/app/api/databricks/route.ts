@@ -261,11 +261,12 @@ export async function GET() {
     const totalPriorProcs = Object.values(priorProcByName).reduce((a, b) => a + b, 0);
 
     // Actual revenues aggregation
+    const parseEes = (v: any) => { if (!v) return null; const n = parseFloat(String(v).replace(/[^0-9.]/g, '')); return n || null; }
     const actByName: Record<string, { fee_structure: string; carveout: string; ees: any; vintage: number | null; prior_rev: number; py_rev: number; monthly_rev: Record<number, number>; py_monthly_rev: Record<number, number> }> = {};
     for (const r of actual) {
       const n = r.client_name;
       if (!actByName[n]) {
-        actByName[n] = { fee_structure: r.fee_structure || '—', carveout: carveoutLabel(r.carve_out), ees: parseFloat(r.ees) || null, vintage: r.go_live_date ? new Date(r.go_live_date).getFullYear() : null, prior_rev: 0, py_rev: 0, monthly_rev: {}, py_monthly_rev: {} };
+        actByName[n] = { fee_structure: r.fee_structure || '—', carveout: carveoutLabel(r.carve_out), ees: parseEes(r.ees), vintage: r.go_live_date ? new Date(r.go_live_date).getFullYear() : null, prior_rev: 0, py_rev: 0, monthly_rev: {}, py_monthly_rev: {} };
       }
       const rev = parseRevenue(r.actual_revenue);
       const parsed = parseYearMonth(r.revenue_month);
@@ -349,7 +350,7 @@ export async function GET() {
         vintage: act?.vintage ?? null,
         fee_structure: act?.fee_structure ?? surg?.fee_structure ?? '—',
         carveout: act?.carveout ?? carveoutLabel(surg?.carve_out),
-        ees: (surg?.ees ? parseInt(surg.ees) : null) ?? (act?.ees ? parseInt(act.ees) : null),
+        ees: (surg?.ees ? parseInt(String(surg.ees).replace(/[^0-9]/g,'')) : null) ?? act?.ees ?? null,
         // Procedures
         procs26_jan: procs26[0], procs26_feb: procs26[1], procs26_mar: procs26[2],
         procs26_apr_mtd: surg?.scheduled || null,
