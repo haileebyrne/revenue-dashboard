@@ -219,14 +219,14 @@ export async function GET() {
     // ytdProcByClient[name][month] = count
     const ytdProcByClient: Record<string, Record<number, number>> = {};
     for (const r of ytdSurgeries) {
-      const n = r.client_name;
+      const n = (r.client_name||'').trim().replace(/ Of /g,' of ');
       if (!ytdProcByClient[n]) ytdProcByClient[n] = {};
       ytdProcByClient[n][parseInt(r.m)] = parseInt(r.proc_count) || 0;
     }
     const priorProcByClient: Record<string, Record<number, number>> = {};
     const priorProcByName: Record<string, number> = {};
     for (const r of priorSurgeries) {
-      const n = r.client_name;
+      const n = (r.client_name||'').trim().replace(/ Of /g,' of ');
       if (!priorProcByClient[n]) priorProcByClient[n] = {};
       priorProcByClient[n][parseInt(r.m)] = parseInt(r.proc_count) || 0;
       priorProcByName[n] = (priorProcByName[n] || 0) + (parseInt(r.proc_count) || 0);
@@ -241,7 +241,7 @@ export async function GET() {
     // Current month surgeries aggregation
     const surgByName: Record<string, { client_code: string; care_hub_name: string; fee_structure: string; carve_out: any; ees: any; scheduled: number; scheduled_rev: number }> = {};
     for (const s of curSurgeries) {
-      const key = s.client_name;
+      const key = (s.client_name||'').trim().replace(/ Of /g,' of ');
       if (!surgByName[key]) {
         surgByName[key] = { client_code: s.client_code, care_hub_name: s.care_hub_name || s.client_code, fee_structure: s.fee_structure || '—', carve_out: s.carve_out, ees: s.ees, scheduled: 0, scheduled_rev: 0 };
       }
