@@ -1075,36 +1075,48 @@ function MtdGauges({ data }: { data: any }) {
 }
 
 function CumulProcChart({ data }: { data: any }) {
+  const [procs2024, setProcs2024] = useState<Record<number,number>>({})
+  useEffect(() => {
+    fetch('/api/procs')
+      .then(r => r.json())
+      .then(d => {
+        const m24: Record<number,number> = {}
+        ;(d.data || []).filter((r:any) => String(r.yr) === '2024').forEach((r:any) => {
+          m24[parseInt(r.mo)] = parseInt(r.proc_count) || 0
+        })
+        setProcs2024(m24)
+      })
+      .catch(() => {})
+  }, [])
+
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   const byYM = (data as any).proc_by_year_month || {}
+  const yr25 = Object.keys(byYM).find(y => y.endsWith('5')) || '2025'
+  const yr26 = Object.keys(byYM).find(y => y.endsWith('6')) || '2026'
 
-  const cumul = (yr: string): (number|null)[] => {
+  const cumul = (monthly: Record<number,number>): (number|null)[] => {
     let sum = 0
     return Array.from({length: 12}, (_, i) => {
-      const v = byYM[yr]?.[i + 1]
+      const v = monthly[i + 1]
       if (v == null) return sum > 0 ? null : null
       sum += v
       return sum
     })
   }
 
-  const years = Object.keys(byYM).sort()
-  const yr24 = years.find(y => y.endsWith('4')) || '2024'
-  const yr25 = years.find(y => y.endsWith('5')) || '2025'
-  const yr26 = years.find(y => y.endsWith('6')) || '2026'
-  const data24 = cumul(yr24)
-  const data25 = cumul(yr25)
-  const data26 = cumul(yr26)
+  const data24 = cumul(procs2024)
+  const data25 = cumul(Object.fromEntries(Object.entries(byYM[yr25] || {}).map(([k,v]) => [parseInt(k), v as number])))
+  const data26 = cumul(Object.fromEntries(Object.entries(byYM[yr26] || {}).map(([k,v]) => [parseInt(k), v as number])))
   const allVals = [...data24, ...data25, ...data26].filter((v): v is number => v != null)
 
   if (!allVals.length) return (
-    <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, padding:'14px 16px 10px'}}>
+    <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, padding:'14px 16px 10px', flex:1}}>
       <div style={{fontSize:11, fontWeight:600, color:'#3D6358', fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8}}>Cumul. YTD Procedures</div>
-      <div style={{fontSize:11, color:'#9CA3AF', fontFamily:'DM Sans, sans-serif'}}>No data</div>
+      <div style={{fontSize:11, color:'#9CA3AF', fontFamily:'DM Sans, sans-serif'}}>Loading...</div>
     </div>
   )
 
-  const W = 320, H = 150, PAD_L = 38, PAD_R = 12, PAD_T = 12, PAD_B = 22
+  const W = 380, H = 150, PAD_L = 38, PAD_R = 12, PAD_T = 12, PAD_B = 22
   const maxV = Math.max(...allVals) * 1.1
   const xStep = (W - PAD_L - PAD_R) / 11
   const xp = (i: number) => PAD_L + i * xStep
@@ -1118,7 +1130,7 @@ function CumulProcChart({ data }: { data: any }) {
   }
 
   return (
-    <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, padding:'14px 16px 10px', height:'100%', boxSizing:'border-box'}}>
+    <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, padding:'14px 16px 10px', flex:1, minWidth:280}}>
       <div style={{fontSize:11, fontWeight:600, color:'#3D6358', marginBottom:8, fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em'}}>
         Cumul. YTD Procedures
       </div>
