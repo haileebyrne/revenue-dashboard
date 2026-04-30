@@ -53,7 +53,7 @@ export async function GET() {
     const curveAtToday = SCHEDULING_CURVE[currentBizDay] || 0.85;
     const scaleUpFactor = curveAtToday > 0 ? 1 / curveAtToday : 1;
 
-    const [actual, budget, inputs, curSurgeries, ytdSurgeries, priorSurgeries, otherRevenues, monthlyFunnel, funnel, surgeries2024] = await Promise.all([
+    const [actual, budget, inputs, curSurgeries, ytdSurgeries, priorSurgeries, otherRevenues, monthlyFunnel, funnel] = await Promise.all([
 
       // Actual revenues (all historical)
       queryDatabricks(
@@ -123,15 +123,7 @@ export async function GET() {
         FROM sandboxwarehouse.growth_analytics.other_revenues`,
         'other-rev'
       ),
-      // 2024 full year surgeries by month
-      queryDatabricks(
-        `SELECT MONTH(date_of_service) AS m, COUNT(DISTINCT service_id) AS proc_count
-        FROM datawarehouse.core.member_surgeries
-        WHERE YEAR(date_of_service) = ${year - 2}
-          AND requested_procedure_item_category <> 'INFUSION'
-        GROUP BY MONTH(date_of_service)`,
-        'surgeries-2024-v3'
-      ),
+
 
 
       // Monthly aggregate funnel (2024-present) for Funnel tab
@@ -806,13 +798,7 @@ export async function GET() {
       }
     }
 
-    // 2024 from surgeries2024
-    for (const r of surgeries2024) {
-      const mo = parseInt(String(r.m)) || parseInt(String(r.mo))
-      if (mo) procsByYearMonth[yr2024][mo] = parseInt(r.proc_count) || 0
-    }
-
-    // 2026 from ytdSurgeries + curSurgeries
+// 2026 from ytdSurgeries + curSurgeries
     const ytdProcByMonth: Record<number, number> = {}
     for (const r of ytdSurgeries) {
       ytdProcByMonth[parseInt(r.m)] = (ytdProcByMonth[parseInt(r.m)] || 0) + (parseInt(r.proc_count) || 0)
