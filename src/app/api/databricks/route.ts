@@ -51,9 +51,7 @@ export async function GET() {
     const currentBizDay = businessDayOfMonth(now);
     const totalBizDays = businessDaysInMonth(year, month);
     const curveAtToday = SCHEDULING_CURVE[currentBizDay] || 0.85;
-    const isLastBizDay = currentBizDay === totalBizDays;
-    const effectiveCurve = isLastBizDay ? 1 : curveAtToday;
-    const scaleUpFactor = effectiveCurve > 0 ? 1 / effectiveCurve : 1;
+    const scaleUpFactor = curveAtToday > 0 ? 1 / curveAtToday : 1;
 
     const [actual, budget, inputs, curSurgeries, ytdSurgeries, priorSurgeries, otherRevenues, monthlyFunnel, funnel] = await Promise.all([
 
@@ -637,7 +635,7 @@ export async function GET() {
       }
     }
 
-    const scaleDownFactor = isLastBizDay ? 1 : curveAtToday;
+    const scaleDownFactor = curveAtToday;
     const toM = (v: number) => parseFloat((v / 1_000_000).toFixed(2));
 
     // ─── Actual proc counts (from member_surgeries) ───
