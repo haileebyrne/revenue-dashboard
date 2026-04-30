@@ -1,5 +1,5 @@
 const CACHE: Record<string, { data: any; ts: number }> = {};
-const CACHE_TTL = 1000 * 60 * 30;
+const CACHE_TTL = 1000 * 60 * 0; // force refresh
 
 async function pollStatement(host: string, token: string, statementId: string): Promise<any> {
   for (let i = 0; i < 60; i++) {
