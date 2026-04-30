@@ -209,6 +209,11 @@ export async function GET() {
       return negative ? -val : val;
     }
 
+    const normName = (n: string) => n?.trim()
+      .replace(/State Of Florida/i, 'State of Florida')
+      .replace(/The Home Depot/i, 'The Home Depot')
+      || n
+
     // Build funnel lookup by client_code
     const funnelByCode: Record<string, any> = {};
     for (const f of funnel) {
@@ -219,14 +224,14 @@ export async function GET() {
     // ytdProcByClient[name][month] = count
     const ytdProcByClient: Record<string, Record<number, number>> = {};
     for (const r of ytdSurgeries) {
-      const n = r.client_name;
+      const n = normName(r.client_name);
       if (!ytdProcByClient[n]) ytdProcByClient[n] = {};
       ytdProcByClient[n][parseInt(r.m)] = parseInt(r.proc_count) || 0;
     }
     const priorProcByClient: Record<string, Record<number, number>> = {};
     const priorProcByName: Record<string, number> = {};
     for (const r of priorSurgeries) {
-      const n = r.client_name;
+      const n = normName(r.client_name);
       if (!priorProcByClient[n]) priorProcByClient[n] = {};
       priorProcByClient[n][parseInt(r.m)] = parseInt(r.proc_count) || 0;
       priorProcByName[n] = (priorProcByName[n] || 0) + (parseInt(r.proc_count) || 0);
@@ -241,7 +246,7 @@ export async function GET() {
     // Current month surgeries aggregation
     const surgByName: Record<string, { client_code: string; care_hub_name: string; fee_structure: string; carve_out: any; ees: any; scheduled: number; scheduled_rev: number }> = {};
     for (const s of curSurgeries) {
-      const key = s.client_name;
+      const key = normName(s.client_name);
       if (!surgByName[key]) {
         surgByName[key] = { client_code: s.client_code, care_hub_name: s.care_hub_name || s.client_code, fee_structure: s.fee_structure || '—', carve_out: s.carve_out, ees: s.ees, scheduled: 0, scheduled_rev: 0 };
       }
@@ -263,11 +268,6 @@ export async function GET() {
     const totalPriorProcs = Object.values(priorProcByName).reduce((a, b) => a + b, 0);
 
     // Actual revenues aggregation
-    // Normalize client names to prevent duplicates
-    const normName = (n: string) => n?.trim()
-      .replace(/State Of Florida/i, 'State of Florida')
-      .replace(/The Home Depot/i, 'The Home Depot')
-      || n
     const parseEes = (v: any) => { if (!v) return null; const n = parseFloat(String(v).replace(/[^0-9.]/g, '')); return n || null; }
     const actByName: Record<string, { fee_structure: string; carveout: string; ees: any; vintage: number | null; prior_rev: number; py_rev: number; monthly_rev: Record<number, number>; py_monthly_rev: Record<number, number> }> = {};
     for (const r of actual) {
@@ -304,10 +304,12 @@ export async function GET() {
         if (rm === month) curBudRev += rev;
         monthlyBudgetTotals[rm] = (monthlyBudgetTotals[rm] || 0) + rev;
         if (rm <= month) {
-          budByName[r.client_name] = (budByName[r.client_name] || 0) + rev;
+          const n = normName(r.client_name);
+          budByName[n] = (budByName[n] || 0) + rev;
         }
         if (r.fee_structure !== 'Fixed') {
-          fullYearBudByName[r.client_name] = (fullYearBudByName[r.client_name] || 0) + rev;
+          const n = normName(r.client_name);
+          fullYearBudByName[n] = (fullYearBudByName[n] || 0) + rev;
         }
       }
     }
