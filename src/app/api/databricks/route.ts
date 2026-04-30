@@ -263,12 +263,10 @@ export async function GET() {
     const totalPriorProcs = Object.values(priorProcByName).reduce((a, b) => a + b, 0);
 
     // Actual revenues aggregation
-    // Normalize client names to prevent duplicates  
+    // Normalize client names to prevent duplicates
     const normName = (n: string) => {
       if (!n) return n
-      return n.trim()
-        .replace(/\bOf\b/g, 'of')
-        .replace(/\bThe\b/g, 'The')
+      return n.trim().replace(/ Of /g, ' of ')
     }
     const parseEes = (v: any) => { if (!v) return null; const n = parseFloat(String(v).replace(/[^0-9.]/g, '')); return n || null; }
     const actByName: Record<string, { fee_structure: string; carveout: string; ees: any; vintage: number | null; prior_rev: number; py_rev: number; monthly_rev: Record<number, number>; py_monthly_rev: Record<number, number> }> = {};
