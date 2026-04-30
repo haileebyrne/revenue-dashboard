@@ -782,14 +782,13 @@ export async function GET() {
       }
     }
 
-    // Aggregate procs by year/month from prior year data already fetched
-    const procsByYearMonth: Record<string, Record<number, number>> = {}
-    for (const r of priorYearProcs) {
-      const d = parseDate(r.date_of_service)
-      if (!d) continue
-      const yr = String(d.ry)
-      if (!procsByYearMonth[yr]) procsByYearMonth[yr] = {}
-      procsByYearMonth[yr][d.rm] = (procsByYearMonth[yr][d.rm] || 0) + 1
+    // Build proc totals by month from priorProcByClient (2025 data)
+    const procsByYearMonth: Record<string, Record<number, number>> = { '2025': {} }
+    for (const clientMonths of Object.values(priorProcByClient)) {
+      for (const [mo, cnt] of Object.entries(clientMonths)) {
+        const m = parseInt(mo)
+        procsByYearMonth['2025'][m] = (procsByYearMonth['2025'][m] || 0) + cnt
+      }
     }
 
     return NextResponse.json({
