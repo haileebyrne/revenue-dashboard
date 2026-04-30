@@ -1079,37 +1079,30 @@ function MtdGauges({ data }: { data: any }) {
 }
 
 function CumulProcChart({ data }: { data: any }) {
-  const [procRows, setProcRows] = useState<any[]>([])
-  useEffect(() => {
-    fetch('/api/procs').then(r => r.json()).then(d => setProcRows(d.data || []))
-  }, [])
-
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const clients = ((data.top50 || []) as any[]).filter((r:any) => !r.is_total)
 
-  const byYearMonth: Record<string, Record<number, number>> = {}
-  procRows.forEach((r: any) => {
-    const yr = String(r.yr)
-    const mo = parseInt(r.mo)
-    if (!byYearMonth[yr]) byYearMonth[yr] = {}
-    byYearMonth[yr][mo] = parseInt(r.proc_count) || 0
-  })
+  const sumField = (key: string) => clients.reduce((s:number, r:any) => s + (parseFloat(r[key]) || 0), 0)
 
-  const cumul = (yr: string): (number|null)[] => {
+  const mk25 = ['procs25_jan','procs25_feb','procs25_mar','procs25_apr','procs25_may','procs25_jun','procs25_jul','procs25_aug','procs25_sep','procs25_oct','procs25_nov','procs25_dec']
+  const mk26 = ['procs26_jan','procs26_feb','procs26_mar','procs26_apr_mtd',null,null,null,null,null,null,null,null]
+
+  const cumulArr = (keys: (string|null)[]) => {
     let sum = 0
-    let started = false
-    return Array.from({length:12}, (_,i) => {
-      const v = byYearMonth[yr]?.[i+1]
-      if (v == null && !started) return null
-      if (v == null) return null
-      started = true
+    return keys.map(k => {
+      if (!k) return null
+      const v = sumField(k)
+      if (!v && sum === 0) return null
       sum += v
-      return sum
+      return sum > 0 ? sum : null
     })
   }
 
-  const data24 = cumul('2024')
-  const data25 = cumul('2025')
-  const data26 = cumul('2026')
+  const data25 = cumulArr(mk25)
+  const data26 = cumulArr(mk26)
+  const data24: (number|null)[] = [1309,2787,4489,6344,8326,10244,12219,14027,15823,17749,19568,21546]
+    .map((v,i) => v)
+
   const allVals = [...data24, ...data25, ...data26].filter((v): v is number => v != null)
 
   if (!allVals.length) return (

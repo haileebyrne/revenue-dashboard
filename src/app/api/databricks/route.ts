@@ -772,6 +772,16 @@ export async function GET() {
       pct_vs_budget_eom: curBudRev ? parseFloat((totalEomRev / curBudRev).toFixed(3)) : null,
     };
 
+    // Build proc totals by year/month from ytdProcByClient
+    const procTotals: Record<string, Record<number, number>> = {}
+    for (const [, months] of Object.entries(ytdProcByClient)) {
+      for (const [mo, cnt] of Object.entries(months)) {
+        const yr = '2025' // ytdProcByClient is current year procs
+        if (!procTotals[yr]) procTotals[yr] = {}
+        procTotals[yr][parseInt(mo)] = (procTotals[yr][parseInt(mo)] || 0) + cnt
+      }
+    }
+
     return NextResponse.json({
       source: 'databricks',
       refreshedAt: new Date().toISOString(),
