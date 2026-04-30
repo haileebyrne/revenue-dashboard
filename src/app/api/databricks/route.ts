@@ -130,7 +130,7 @@ export async function GET() {
         WHERE YEAR(date_of_service) = ${year - 2}
           AND requested_procedure_item_category <> 'INFUSION'
         GROUP BY MONTH(date_of_service)`,
-        'surgeries-2024-v2'
+        'surgeries-2024-v3'
       ),
 
 
