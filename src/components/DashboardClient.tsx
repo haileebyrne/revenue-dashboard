@@ -1092,9 +1092,14 @@ function CumulProcChart({ data }: { data: any }) {
     })
   }
 
-  const data24 = cumul('2024')
-  const data25 = cumul('2025')
-  const allVals = [...data24, ...data25].filter((v): v is number => v != null)
+  const years = Object.keys(byYM).sort()
+  const yr24 = years.find(y => y.endsWith('4')) || '2024'
+  const yr25 = years.find(y => y.endsWith('5')) || '2025'
+  const yr26 = years.find(y => y.endsWith('6')) || '2026'
+  const data24 = cumul(yr24)
+  const data25 = cumul(yr25)
+  const data26 = cumul(yr26)
+  const allVals = [...data24, ...data25, ...data26].filter((v): v is number => v != null)
 
   if (!allVals.length) return (
     <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, padding:'14px 16px 10px'}}>
@@ -1124,14 +1129,17 @@ function CumulProcChart({ data }: { data: any }) {
       <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', height:H, display:'block'}}>
         {[0.25,0.5,0.75,1].map(t => <line key={t} x1={PAD_L} x2={W-PAD_R} y1={yp(maxV*t)} y2={yp(maxV*t)} stroke="#E8F2EF" strokeWidth={0.5} />)}
         {[0.5,1].map(t => <text key={t} x={PAD_L-4} y={yp(maxV*t)+4} textAnchor="end" fontSize={8} fill="#7A9E94" fontFamily="DM Sans, sans-serif">{fmtK(maxV*t)}</text>)}
-        {linePath(data24, '#7AB5A0', '4,3')}
-        {linePath(data25, '#0B4F3E')}
-        {data25.map((v, i) => v == null ? null : <circle key={i} cx={xp(i)} cy={yp(v)} r={2.5} fill="#0B4F3E" />)}
+        {linePath(data24, '#D4E4DF', '4,3')}
+        {linePath(data25, '#7AB5A0')}
+        {linePath(data26, '#0B4F3E')}
+        {data26.map((v, i) => v == null ? null : <circle key={i} cx={xp(i)} cy={yp(v)} r={2.5} fill="#0B4F3E" />)}
         {months.map((m, i) => <text key={m} x={xp(i)} y={H-4} textAnchor="middle" fontSize={7.5} fill="#7A9E94" fontFamily="DM Sans, sans-serif">{m}</text>)}
       </svg>
       <div style={{display:'flex', gap:16, marginTop:4, fontFamily:'DM Sans, sans-serif', fontSize:10, color:'#3D6358'}}>
         <span><span style={{display:'inline-block', width:14, height:0, borderTop:'2px dashed #7AB5A0', marginRight:3, verticalAlign:'middle'}}></span>2024</span>
-        <span><span style={{display:'inline-block', width:14, height:2, background:'#0B4F3E', marginRight:3, verticalAlign:'middle'}}></span>2025</span>
+        <span><span style={{display:'inline-block', width:14, height:0, borderTop:'2px dashed #D4E4DF', marginRight:3, verticalAlign:'middle'}}></span>2024</span>
+        <span><span style={{display:'inline-block', width:14, height:2, background:'#7AB5A0', marginRight:3, verticalAlign:'middle'}}></span>2025</span>
+        <span><span style={{display:'inline-block', width:14, height:2, background:'#0B4F3E', marginRight:3, verticalAlign:'middle'}}></span>2026</span>
       </div>
     </div>
   )
