@@ -782,6 +782,16 @@ export async function GET() {
       }
     }
 
+    // Aggregate procs by year/month from prior year data already fetched
+    const procsByYearMonth: Record<string, Record<number, number>> = {}
+    for (const r of priorYearProcs) {
+      const d = parseDate(r.date_of_service)
+      if (!d) continue
+      const yr = String(d.ry)
+      if (!procsByYearMonth[yr]) procsByYearMonth[yr] = {}
+      procsByYearMonth[yr][d.rm] = (procsByYearMonth[yr][d.rm] || 0) + 1
+    }
+
     return NextResponse.json({
       source: 'databricks',
       refreshedAt: new Date().toISOString(),
