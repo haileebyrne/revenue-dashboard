@@ -743,7 +743,7 @@ function FunnelTab({ data }: { data: any }) {
 }
 
 
-type TabId = 'all' | 'top50' | 'cohort' | 'mtd' | 'funnel'
+type TabId = 'all' | 'top50' | 'cohort' | 'mtd' | 'carveout'
 export default function DashboardClient({ initialData }: { initialData: DashboardData }) {
   const [data, setData] = useState<DashboardData>(initialData)
   const [tab, setTab] = useState<TabId>('all')
@@ -805,29 +805,28 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
           <RevenueWaterfall data={data} />
           <Top5Clients data={data} />
           <div style={{flex:1, minWidth:280}}>
-            <MtdGauges data={data} />
+            <CumulProcChart data={data} />
           </div>
         </div>
         <div className={styles.tabs}>
           {([
-            ['all',    'All Clients'],
-            ['top50',  'Top 50'],
-            ['cohort', '2026 Cohort'],
-        ['carveout', 'Carveout Summary'],
-            ['funnel', 'Funnel Metrics'],
-            ['mtd',    'MTD Performance'],
-          ] as [TabId, string][]).map(([t, label]) => (
-            <button key={t} className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`} onClick={() => setTab(t)}>
+            { id: 'all',      label: 'All Clients' },
+            { id: 'top50',    label: 'Top 50' },
+            { id: 'cohort',   label: '2026 Cohort' },
+            { id: 'carveout', label: 'Carveout Summary' },
+            { id: 'mtd',      label: 'MTD Performance' },
+          ] as {id: TabId, label: string}[]).map(({ id: t, label }) => (
+            <button key={t}
+              className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`} onClick={() => setTab(t)}>
               {label}
             </button>
           ))}
         </div>
-        {tab === 'all'    && <ClientTable rows={allClients} />}
-        {tab === 'top50'  && <ClientTable rows={top50Only} />}
-        {tab === 'cohort' && <CohortTable rows={cohort2026} />}
-        {tab === 'mtd'    && <MtdPerformance data={mtdData} />}
+        {tab === 'all'     && <ClientTable rows={allClients} />}
+        {tab === 'top50'   && <ClientTable rows={top50Only} />}
+        {tab === 'cohort'  && <CohortTable rows={cohort2026} />}
+        {tab === 'mtd'     && <MtdPerformance data={mtdData} />}
         {tab === 'carveout' && <CarveoutTable rows={(data as any).carveoutSummary || []} />}
-        {tab === 'funnel'   && <FunnelTab data={data} />}
       </main>
     </div>
   )
@@ -1079,7 +1078,7 @@ function MtdGauges({ data }: { data: any }) {
 
 function Top5Clients({ data }: { data: any }) {
   const rows = ((data.top50 || []) as any[])
-    .filter((r: any) => !r.is_total && r.client_name !== 'Total Surgery Care Revenue')
+    .filter((r: any) => !r.is_total && r.client_name !== 'Total Surgery Care Revenue' && (r.fee_structure || '').toLowerCase().includes('variable'))
     .sort((a: any, b: any) => (b.rev26_ytd ?? 0) - (a.rev26_ytd ?? 0))
     .slice(0, 5)
 
