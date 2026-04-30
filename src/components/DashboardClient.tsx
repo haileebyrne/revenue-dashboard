@@ -1079,9 +1079,9 @@ function MtdGauges({ data }: { data: any }) {
 function CumulProcChart({ data }: { data: any }) {
   const top50 = (data.top50 || []) as any[]
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  const monthKeys25 = ['proc25_jan','proc25_feb','proc25_mar','proc25_apr','proc25_may','proc25_jun','proc25_jul','proc25_aug','proc25_sep','proc25_oct','proc25_nov','proc25_dec']
-  const monthKeys26 = ['proc26_jan','proc26_feb','proc26_mar','proc26_apr','proc26_may','proc26_jun','proc26_jul','proc26_aug','proc26_sep','proc26_oct','proc26_nov','proc26_dec']
-  const monthKeys24 = ['proc24_jan','proc24_feb','proc24_mar','proc24_apr','proc24_may','proc24_jun','proc24_jul','proc24_aug','proc24_sep','proc24_oct','proc24_nov','proc24_dec']
+  const monthKeys25 = ['procs25_jan','procs25_feb','procs25_mar','procs25_apr','procs25_may','procs25_jun','procs25_jul','procs25_aug','procs25_sep','procs25_oct','procs25_nov','procs25_dec']
+  const monthKeys26 = ['procs26_jan','procs26_feb','procs26_mar','procs26_apr','procs26_may','procs26_jun','procs26_jul','procs26_aug','procs26_sep','procs26_oct','procs26_nov','procs26_dec']
+  const monthKeys24 = ['procs24_jan','procs24_feb','procs24_mar','procs24_apr','procs24_may','procs24_jun','procs24_jul','procs24_aug','procs24_sep','procs24_oct','procs24_nov','procs24_dec']
 
   // Build cumulative totals per month
   const cumul = (keys: string[]) => {
@@ -1122,7 +1122,7 @@ function CumulProcChart({ data }: { data: any }) {
   return (
     <div style={{background:'#fff', border:'1px solid #D4E4DF', borderRadius:10, padding:'14px 16px 10px', flex:1}}>
       <div style={{fontSize:11, fontWeight:600, color:'#3D6358', marginBottom:10, fontFamily:'DM Sans, sans-serif', textTransform:'uppercase', letterSpacing:'0.05em'}}>
-        Cumulative YTD Procedures
+        Cumul. YTD Procedures
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%', height:H, display:'block'}}>
         {/* Grid lines */}
@@ -1164,7 +1164,7 @@ function CumulProcChart({ data }: { data: any }) {
 function Top5Clients({ data }: { data: any }) {
   const rows = ((data.top50 || []) as any[])
     .filter((r: any) => !r.is_total && r.client_name !== 'Total Surgery Care Revenue' && (r.fee_structure || '').toLowerCase().includes('variable'))
-    .sort((a: any, b: any) => (b.rev26_ytd ?? 0) - (a.rev26_ytd ?? 0))
+    .sort((a: any, b: any) => (b.ees ?? 0) - (a.ees ?? 0))
     .slice(0, 5)
 
   if (!rows.length) return null
