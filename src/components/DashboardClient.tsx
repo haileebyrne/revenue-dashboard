@@ -799,7 +799,8 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
           </span>
         </div>
       </header>
-      <main className={styles.main}>
+      <main className={styles.main} style={{display:'flex', flexDirection:'column', height:'calc(100vh - 56px)', overflow:'hidden'}}>
+        <div style={{flexShrink:0}}>
         <KpiRow kpis={data.kpis} />
         <div style={{display:'flex', alignItems:'stretch', flexWrap:'nowrap', gap:16, padding:'12px 24px 0', width:'100%', boxSizing:'border-box'}}>
           <div style={{flex:'0 0 auto'}}>
@@ -812,6 +813,8 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
             <CumulProcChart data={data} />
           </div>
         </div>
+        </div>
+        <div style={{flex:1, overflowY:'auto', overflowX:'auto'}}>
         <div className={styles.tabs}>
           {([
             { id: 'all',      label: 'All Clients' },
@@ -831,6 +834,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
         {tab === 'cohort'  && <CohortTable rows={cohort2026} />}
         {tab === 'mtd'     && <MtdPerformance data={mtdData} />}
         {tab === 'carveout' && <CarveoutTable rows={(data as any).carveoutSummary || []} />}
+        </div>
       </main>
     </div>
   )
